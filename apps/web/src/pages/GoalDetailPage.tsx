@@ -90,7 +90,9 @@ export function GoalDetailPage() {
       `${moveCount ? `${moveCount} catatan isi/culik` : 'Semua catatan isi/culik'} ikut terhapus: uang yang diisi kembali ke dompet asalnya, dan yang diculik ditarik lagi dari dompetnya.`,
     goal.initialAmount > 0 &&
       `Saldo awal ${formatRupiah(goal.initialAmount)} ikut hilang dari kekayaan bersih.`,
-    hasMoves && 'Kalau tabungan ini sudah selesai, arsipkan saja supaya riwayatnya tetap ada.',
+    hasMoves &&
+      !goal.archived &&
+      'Kalau tabungan ini sudah selesai, arsipkan saja supaya riwayatnya tetap ada.',
   ]
     .filter(Boolean)
     .join(' ')
@@ -210,12 +212,9 @@ export function GoalDetailPage() {
       )}
 
       <section className="mt-6" aria-labelledby="goal-history">
-        <h2 id="goal-history" className="mx-4 font-semibold">
+        <h2 id="goal-history" className="mx-4 mb-2 font-semibold">
           Riwayat
         </h2>
-        <p className="mx-4 mb-2 text-xs text-slate-500 dark:text-slate-400">
-          Ketuk catatan untuk mengubah atau menghapusnya.
-        </p>
         {history.isError ? (
           <LoadError error={history.error} onRetry={() => history.refetch()} />
         ) : !history.data ? (
@@ -228,54 +227,59 @@ export function GoalDetailPage() {
             menabung.
           </p>
         ) : (
-          <ul
-            className={`mx-4 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800 ${cardClass}`}
-          >
-            {history.data.map((t) => {
-              const isDeposit = t.type === 'saving_deposit'
-              const detail = [formatDayHeading(t.date), accountName(t.accountId), t.note]
-                .filter(Boolean)
-                .join(' · ')
-              return (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => setEditingMove(t)}
-                    aria-label={`Ubah ${isDeposit ? 'isi' : 'culik'} ${formatRupiah(t.amount)}, ${formatDate(t.date)}`}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800"
-                  >
-                    <span
-                      className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-lg ${
-                        isDeposit
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300'
-                          : 'bg-amber-100 dark:bg-amber-900/50'
-                      }`}
-                      aria-hidden
+          <>
+            <p className="mx-4 -mt-1 mb-2 text-xs text-slate-500 dark:text-slate-400">
+              Ketuk catatan untuk mengubah atau menghapusnya.
+            </p>
+            <ul
+              className={`mx-4 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800 ${cardClass}`}
+            >
+              {history.data.map((t) => {
+                const isDeposit = t.type === 'saving_deposit'
+                const detail = [formatDayHeading(t.date), accountName(t.accountId), t.note]
+                  .filter(Boolean)
+                  .join(' · ')
+                return (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => setEditingMove(t)}
+                      aria-label={`Ubah ${isDeposit ? 'isi' : 'culik'} ${formatRupiah(t.amount)}, ${formatDate(t.date)}`}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800"
                     >
-                      {isDeposit ? <Plus className="size-5" /> : '🥷'}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium">{isDeposit ? 'Isi' : 'Culik'}</span>
-                      <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                        {detail}
+                      <span
+                        className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-lg ${
+                          isDeposit
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300'
+                            : 'bg-amber-100 dark:bg-amber-900/50'
+                        }`}
+                        aria-hidden
+                      >
+                        {isDeposit ? <Plus className="size-5" /> : '🥷'}
                       </span>
-                    </span>
-                    <span
-                      className={`shrink-0 text-sm font-semibold tabular-nums ${
-                        isDeposit
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-rose-600 dark:text-rose-400'
-                      }`}
-                    >
-                      {isDeposit ? '+' : '−'}
-                      {formatRupiah(t.amount)}
-                    </span>
-                    <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium">{isDeposit ? 'Isi' : 'Culik'}</span>
+                        <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                          {detail}
+                        </span>
+                      </span>
+                      <span
+                        className={`shrink-0 text-sm font-semibold tabular-nums ${
+                          isDeposit
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-rose-600 dark:text-rose-400'
+                        }`}
+                      >
+                        {isDeposit ? '+' : '−'}
+                        {formatRupiah(t.amount)}
+                      </span>
+                      <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
         )}
       </section>
 

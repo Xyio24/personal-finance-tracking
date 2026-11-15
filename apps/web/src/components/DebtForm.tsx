@@ -76,12 +76,7 @@ export function DebtForm({
   }
 
   const payable = direction === 'payable'
-  const moneyMoves =
-    debt !== null &&
-    (direction !== debt.direction ||
-      amount !== debt.amount ||
-      date !== debt.date ||
-      (accountId || null) !== debt.accountId)
+  const walletNotice = debt && walletChange(debt, { direction, amount, date, accountId }, accounts)
 
   return (
     <form onSubmit={submit} className="space-y-5">
@@ -189,10 +184,9 @@ export function DebtForm({
         />
       </div>
 
-      {moneyMoves && (
+      {walletNotice && (
         <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
-          Uang yang tercatat {payable ? 'masuk' : 'keluar'} saat itu ikut diperbaiki, dan saldo
-          dompet dihitung ulang.
+          {walletNotice}
         </p>
       )}
 
@@ -215,4 +209,33 @@ export function DebtForm({
       )}
     </form>
   )
+}
+
+/**
+ * What saving the edit does to wallet money, in words, or null when no wallet is involved
+ * before or after (e.g. a paylater debt stays without a wallet) or nothing about money changed.
+ */
+function walletChange(
+  debt: Debt,
+  next: { direction: DebtDirection; amount: number; date: string; accountId: string },
+  accounts: Account[],
+): string | null {
+  const nextWallet = next.accountId || null
+  const changed =
+    next.direction !== debt.direction ||
+    next.amount !== debt.amount ||
+    next.date !== debt.date ||
+    nextWallet !== debt.accountId
+  if (!changed || (!debt.accountId && !nextWallet)) return null
+
+  const name = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'dompet terhapus'
+  const way = (direction: DebtDirection) => (direction === 'payable' ? 'masuk ke' : 'keluar dari')
+  const recount = 'dan saldo dompet dihitung ulang.'
+  if (!debt.accountId && nextWallet) {
+    return `Uang ${formatRupiah(next.amount)} dicatat ${way(next.direction)} ${name(nextWallet)}, ${recount}`
+  }
+  const recorded = `Uang yang tercatat ${way(debt.direction)} ${name(debt.accountId ?? '')} saat itu`
+  return nextWallet
+    ? `${recorded} ikut diperbaiki, ${recount}`
+    : `${recorded} dibatalkan, ${recount}`
 }

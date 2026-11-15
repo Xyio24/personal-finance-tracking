@@ -213,12 +213,9 @@ export function DebtDetailPage() {
       )}
 
       <section className="mt-6" aria-labelledby="debt-history">
-        <h2 id="debt-history" className="mx-4 font-semibold">
+        <h2 id="debt-history" className="mx-4 mb-2 font-semibold">
           Riwayat
         </h2>
-        <p className="mx-4 mb-2 text-xs text-slate-500 dark:text-slate-400">
-          Ketuk catatan untuk mengubah atau menghapusnya.
-        </p>
         {history.isError ? (
           <LoadError error={history.error} onRetry={() => history.refetch()} />
         ) : !history.data ? (
@@ -231,58 +228,63 @@ export function DebtDetailPage() {
             {debt.accountId ? '' : ', dan tidak ada uang yang berpindah saat dicatat'}.
           </p>
         ) : (
-          <ul
-            className={`mx-4 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800 ${cardClass}`}
-          >
-            {history.data.map((t) => {
-              const opening = isOpening(t)
-              const into = t.type === 'debt_borrow' || t.type === 'debt_collect'
-              const title = opening ? (payable ? 'Dipinjam' : 'Dipinjamkan') : 'Pembayaran'
-              const detail = [
-                formatDayHeading(t.date),
-                `${into ? 'masuk ke' : 'dari'} ${walletName(t.accountId)}`,
-                t.note,
-              ]
-                .filter(Boolean)
-                .join(' · ')
-              return (
-                <li key={t.id}>
-                  {/* The opening move belongs to the debt itself, so it opens the debt's form. */}
-                  <button
-                    type="button"
-                    onClick={() => (opening ? setEditing(true) : setEditingPayment(t))}
-                    aria-label={`${opening ? 'Ubah catatan' : 'Ubah pembayaran'} ${formatRupiah(t.amount)}, ${formatDate(t.date)}`}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800"
-                  >
-                    <span
-                      aria-hidden
-                      className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
-                        into
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300'
-                          : 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'
-                      }`}
+          <>
+            <p className="mx-4 -mt-1 mb-2 text-xs text-slate-500 dark:text-slate-400">
+              Ketuk catatan untuk mengubah atau menghapusnya.
+            </p>
+            <ul
+              className={`mx-4 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800 ${cardClass}`}
+            >
+              {history.data.map((t) => {
+                const opening = isOpening(t)
+                const into = t.type === 'debt_borrow' || t.type === 'debt_collect'
+                const title = opening ? (payable ? 'Dipinjam' : 'Dipinjamkan') : 'Pembayaran'
+                const detail = [
+                  formatDayHeading(t.date),
+                  `${into ? 'masuk ke' : 'dari'} ${walletName(t.accountId)}`,
+                  t.note,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+                return (
+                  <li key={t.id}>
+                    {/* The opening move belongs to the debt itself, so it opens the debt's form. */}
+                    <button
+                      type="button"
+                      onClick={() => (opening ? setEditing(true) : setEditingPayment(t))}
+                      aria-label={`${opening ? 'Ubah catatan' : 'Ubah pembayaran'} ${formatRupiah(t.amount)}, ${formatDate(t.date)}`}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800"
                     >
-                      {into ? (
-                        <ArrowDownLeft className="size-5" />
-                      ) : (
-                        <ArrowUpRight className="size-5" />
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium">{title}</span>
-                      <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                        {detail}
+                      <span
+                        aria-hidden
+                        className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
+                          into
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300'
+                            : 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'
+                        }`}
+                      >
+                        {into ? (
+                          <ArrowDownLeft className="size-5" />
+                        ) : (
+                          <ArrowUpRight className="size-5" />
+                        )}
                       </span>
-                    </span>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums">
-                      {formatRupiah(t.amount)}
-                    </span>
-                    <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium">{title}</span>
+                        <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                          {detail}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-sm font-semibold tabular-nums">
+                        {formatRupiah(t.amount)}
+                      </span>
+                      <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
         )}
       </section>
 

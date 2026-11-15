@@ -1,4 +1,9 @@
-import type { CategoryColor, CategoryIcon, SavingsGoal } from '@finance/shared'
+import {
+  type CategoryColor,
+  type CategoryIcon,
+  formatRupiah,
+  type SavingsGoal,
+} from '@finance/shared'
 import { Archive, ArchiveRestore, LoaderCircle, Trash2, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { errorMessage } from '../lib/errors'
@@ -39,7 +44,11 @@ export function GoalForm({
   const update = useUpdateGoal()
   const saving = create.isPending || update.isPending
   const saveError = create.error ?? update.error
-  const valid = name.trim().length > 0
+  // Same rule as the server: lowering the starting amount can't leave the goal below zero
+  // once part of it has been taken out (raising it, or keeping it, is always fine).
+  const minimumInitial = goal ? Math.max(goal.initialAmount - goal.balance, 0) : 0
+  const belowWithdrawn = goal !== null && initial < goal.initialAmount && initial < minimumInitial
+  const valid = name.trim().length > 0 && !belowWithdrawn
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -122,6 +131,11 @@ export function GoalForm({
         <div className={amountBox}>
           <AmountInput id="goal-initial" size="md" value={initial} onChange={setInitial} />
         </div>
+        {belowWithdrawn && (
+          <p className="mt-1.5 text-xs text-rose-600 dark:text-rose-400">
+            Sebagian sudah diculik, jadi minimal {formatRupiah(minimumInitial)}.
+          </p>
+        )}
         <p className={hintClass}>
           Tabungan yang sudah ada sebelum mulai mencatat. Isi dan culik berikutnya dicatat terpisah;
           kalau salah ketik di salah satunya, ketuk catatannya di Riwayat.
