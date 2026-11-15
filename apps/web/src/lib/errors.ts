@@ -24,6 +24,7 @@ const messages: Record<string, string> = {
   debt_closed: 'Hutang/piutang ini sudah ditutup. Batalkan dulu kalau masih ada pembayaran.',
   debt_overpaid: 'Pembayaran melebihi sisa hutang/piutang.',
   debt_below_paid: 'Jumlah tidak boleh lebih kecil dari yang sudah dibayar.',
+  debt_has_payments: 'Sudah ada pembayaran. Hapus dulu pembayarannya di riwayat, baru catatan ini.',
   managed_by_debt: 'Catatan ini diatur dari halaman hutang/piutangnya.',
   savings_already_used:
     'Sebagian uang dari catatan ini sudah diculik. Hapus dulu catatan culiknya, baru yang ini.',

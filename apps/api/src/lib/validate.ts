@@ -24,6 +24,7 @@ export const idParam = validate('param', z.object({ id: z.uuid() }))
 export type ApiErrorCode =
   | 'not_found'
   | 'in_use'
+  | 'debt_has_payments'
   | 'invalid_account'
   | 'archived_account'
   | 'invalid_category'

@@ -370,7 +370,7 @@ function debtsRoute(db: Store, method: string, id: string | undefined, body: unk
     return debtsWithTotals(db).find((d) => d.id === debt.id)
   }
   if (method === 'DELETE') {
-    if ((current?.paid ?? 0) > 0) throw new ApiError(409, 'in_use')
+    if ((current?.paid ?? 0) > 0) throw new ApiError(409, 'debt_has_payments')
     db.transactions = db.transactions.filter((t) => t.debtId !== debt.id)
     db.debts = db.debts.filter((d) => d.id !== debt.id)
     return undefined

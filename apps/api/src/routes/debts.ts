@@ -102,7 +102,7 @@ debtRoutes.delete('/:id', idParam, async (c) => {
 
   const existing = await findDebt(userId, id)
   if (!existing) return apiError(c, 'not_found', 404)
-  if (existing.paid > 0) return apiError(c, 'in_use', 409)
+  if (existing.paid > 0) return apiError(c, 'debt_has_payments', 409)
 
   await db.transaction(async (tx) => {
     await tx

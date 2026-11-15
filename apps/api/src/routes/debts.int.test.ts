@@ -144,7 +144,10 @@ describe('debts', () => {
     const { client, bank } = await setup()
     const { body: paidDebt } = await lend(client, bank.id)
     await pay(client, 'debt_collect', paidDebt.id, bank.id, 100_000)
-    expect((await client.del(`/debts/${paidDebt.id}`)).status).toBe(409)
+    expect(await client.del(`/debts/${paidDebt.id}`)).toMatchObject({
+      status: 409,
+      body: { error: 'debt_has_payments' },
+    })
 
     const { body: fresh } = await lend(client, bank.id, 300_000)
     expect((await client.del(`/debts/${fresh.id}`)).status).toBe(204)
