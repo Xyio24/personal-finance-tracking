@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router'
+import { isDemo } from '../lib/demo'
 import { BottomNav } from './BottomNav'
 import { QuickAddSheet } from './QuickAddSheet'
 
@@ -9,6 +10,11 @@ export function AppShell() {
 
   return (
     <div className="mx-auto min-h-dvh max-w-md pb-[calc(env(safe-area-inset-bottom)+5.5rem)]">
+      {isDemo && (
+        <p className="bg-amber-100 px-4 py-1.5 text-center text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
+          Mode demo — login Google dilewati, data tidak tersimpan
+        </p>
+      )}
       <Outlet />
       <BottomNav onQuickAdd={() => setQuickAddOpen(true)} />
       <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />

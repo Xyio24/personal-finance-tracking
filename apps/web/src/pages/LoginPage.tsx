@@ -1,5 +1,9 @@
 import { Navigate, useSearchParams } from 'react-router'
 import { useMe } from '../lib/auth'
+import { demoSession, isDemo } from '../lib/demo'
+
+const loginButtonClass =
+  'flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white font-medium text-slate-800 shadow-sm active:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:active:bg-slate-800'
 
 const errorMessages: Record<string, string> = {
   not_allowed: 'Akun Google ini tidak punya akses ke aplikasi ini.',
@@ -9,7 +13,7 @@ const errorMessages: Record<string, string> = {
 }
 
 export function LoginPage() {
-  const { data: user } = useMe()
+  const { data: user, refetch } = useMe()
   const [params] = useSearchParams()
 
   if (user) return <Navigate to="/" replace />
@@ -36,16 +40,29 @@ export function LoginPage() {
         </p>
       )}
 
-      {/* A real navigation (not fetch): the API redirects the browser to Google. */}
-      <a
-        href="/api/auth/google"
-        className="flex h-12 items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white font-medium text-slate-800 shadow-sm active:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:active:bg-slate-800"
-      >
-        <GoogleIcon />
-        Masuk dengan Google
-      </a>
+      {isDemo ? (
+        <button
+          type="button"
+          onClick={() => {
+            demoSession.signIn()
+            void refetch()
+          }}
+          className={loginButtonClass}
+        >
+          <GoogleIcon />
+          Masuk dengan Google
+        </button>
+      ) : (
+        // A real navigation (not fetch): the API redirects the browser to Google.
+        <a href="/api/auth/google" className={loginButtonClass}>
+          <GoogleIcon />
+          Masuk dengan Google
+        </a>
+      )}
       <p className="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
-        Aplikasi pribadi — hanya akun yang terdaftar yang bisa masuk.
+        {isDemo
+          ? 'Mode demo — tombol ini langsung masuk tanpa Google.'
+          : 'Aplikasi pribadi — hanya akun yang terdaftar yang bisa masuk.'}
       </p>
     </main>
   )

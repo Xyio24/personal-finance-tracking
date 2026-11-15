@@ -2,6 +2,7 @@ import { type User, userSchema } from '@finance/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { ApiError, api } from './api'
+import { demoSession, demoUser, isDemo } from './demo'
 
 const meKey = ['me'] as const
 
@@ -10,6 +11,7 @@ export function useMe() {
   return useQuery({
     queryKey: meKey,
     queryFn: async (): Promise<User | null> => {
+      if (isDemo) return demoSession.signedIn ? demoUser : null
       try {
         return userSchema.parse(await api('/me'))
       } catch (err) {
@@ -34,7 +36,10 @@ export function useLogout() {
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: () => api<void>('/auth/logout', { method: 'POST' }),
+    mutationFn: async () => {
+      if (isDemo) return demoSession.signOut()
+      await api<void>('/auth/logout', { method: 'POST' })
+    },
     onSettled: () => {
       queryClient.clear()
       navigate('/login', { replace: true })
