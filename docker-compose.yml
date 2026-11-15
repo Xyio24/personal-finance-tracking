@@ -54,6 +54,24 @@ services:
       db:
         condition: service_healthy
 
+  # Optional: an encrypted copy of ./backups in the cloud (Google Drive, S3, ...) via rclone.
+  # Off until set up — see "Backup offsite" in docs/DEPLOY.md, then COMPOSE_PROFILES=offsite.
+  backup-offsite:
+    image: rclone/rclone:1.75.2
+    profiles: [offsite]
+    restart: unless-stopped
+    environment:
+      OFFSITE_REMOTE: ${OFFSITE_REMOTE:-finance-backup:}
+      OFFSITE_KEEP_DAYS: ${OFFSITE_KEEP_DAYS:-90}
+    volumes:
+      - ./backups:/backups:ro
+      # rclone.conf holds the cloud login and the encryption passwords (gitignored).
+      - ./rclone:/config/rclone
+      - ./scripts/backup-offsite.sh:/backup-offsite.sh:ro
+    entrypoint: ["/bin/sh", "/backup-offsite.sh"]
+    depends_on:
+      - backup
+
   # Outbound-only connection to Cloudflare: no router port forwarding, works behind CGNAT,
   # free HTTPS, and the home IP stays hidden.
   cloudflared:

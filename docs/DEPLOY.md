@@ -9,6 +9,7 @@ Internet ──HTTPS──▶ Cloudflare ══Tunnel══▶ Server Ubuntu
                                               ├─ app          (Hono + React, 127.0.0.1:3000)
                                               ├─ db           (PostgreSQL 18)
                                               ├─ backup       (pg_dump harian → ./backups)
+                                              ├─ backup-offsite (opsional: salinan terenkripsi ke cloud)
                                               └─ cloudflared  (koneksi keluar ke Cloudflare)
 ```
 
@@ -116,17 +117,85 @@ docker compose exec backup sh -c 'umask 077; pg_dump --no-owner --clean --if-exi
 sudo gunzip -c backups/finance-YYYY-MM-DD_HHMM.sql.gz | docker compose exec -T db psql -U finance -d finance
 ```
 
-Folder `backups/` ada di disk yang sama dengan database. Salin secara berkala ke tempat lain
-(disk lain / cloud) — otomatisasi via `rclone` direncanakan di Fase 5. **Uji restore minimal
+Folder `backups/` ada di disk yang sama dengan database, jadi kalau disk rusak atau server
+hilang, backup-nya ikut hilang. Pasang juga backup offsite (bagian 7). **Uji restore minimal
 sekali** supaya yakin backup-nya benar-benar bisa dipakai.
+
+## 7. Backup offsite (terenkripsi)
+
+Container opsional `backup-offsite` menyalin dump harian ke cloud setiap 6 jam memakai
+[rclone](https://rclone.org/) dan menghapus salinan yang lebih tua dari 90 hari. Contoh di bawah
+memakai Google Drive, tapi rclone juga mendukung S3, Backblaze B2, OneDrive, dan lainnya.
+
+File dienkripsi **di server sebelum diunggah** (remote `crypt`), jadi penyedia cloud hanya
+melihat nama dan isi acak.
+
+> ⚠️ **Simpan kedua password enkripsi di password manager.** Kalau server hilang dan password
+> ikut hilang, backup di cloud tidak bisa dibuka oleh siapa pun, termasuk kamu.
+
+### Buat konfigurasi rclone
+
+```bash
+cd ~/personal-finance-tracking
+mkdir -p rclone && chmod 700 rclone
+docker run --rm -it -v "$PWD/rclone:/config/rclone" rclone/rclone:1.75.2 config
+```
+
+1. **Remote cloud**: `n` (new remote) → nama `gdrive` → storage **Google Drive** → client id &
+   secret kosongkan → scope **`drive.file`** (rclone hanya bisa melihat file yang dibuatnya
+   sendiri, bukan seluruh Drive-mu) → sisanya default.
+   - Saat ditanya _Use web browser to automatically authenticate?_ jawab **`n`** (server tidak
+     punya browser). rclone menampilkan perintah `rclone authorize "drive" "..."`. Jalankan
+     perintah itu di laptop/PC yang punya browser (Windows: `winget install Rclone.Rclone`),
+     login Google, lalu tempel token yang muncul kembali ke server.
+2. **Remote terenkripsi**: `n` → nama **`finance-backup`** → storage **Encrypt/Decrypt a remote
+   (crypt)** → remote `gdrive:finance-backups` → _filename encryption_ **standard** → _directory
+   name encryption_ **true** → password: pilih **`g`** (generate, 256 bit), lalu salin ke password
+   manager → password kedua (salt): generate juga, simpan juga.
+3. `q` untuk keluar. Konfigurasinya tersimpan di `rclone/rclone.conf` (di-gitignore, berisi
+   login Drive dan password enkripsi).
+
+### Nyalakan
+
+Tambahkan ke `.env`:
+
+```bash
+COMPOSE_PROFILES=offsite
+```
+
+Lalu:
+
+```bash
+docker compose up -d
+docker compose logs -f backup-offsite   # "Offsite copy done" ±10 menit setelah start
+```
+
+Karena profilnya ada di `.env`, perintah update biasa (`docker compose up -d --build`) ikut
+menjalankannya. Nama remote dan lama penyimpanan bisa diubah lewat `OFFSITE_REMOTE` dan
+`OFFSITE_KEEP_DAYS` di `.env`.
+
+### Ambil dan restore dari cloud
+
+```bash
+# Lihat daftar backup di cloud (nama asli, sudah didekripsi)
+docker run --rm -v "$PWD/rclone:/config/rclone" rclone/rclone:1.75.2 ls finance-backup:
+
+# Unduh satu backup ke ./restore, lalu restore seperti di bagian 6
+docker run --rm -v "$PWD/rclone:/config/rclone" -v "$PWD/restore:/restore" \
+  rclone/rclone:1.75.2 copy finance-backup:finance-YYYY-MM-DD_HHMM.sql.gz /restore
+sudo gunzip -c restore/finance-YYYY-MM-DD_HHMM.sql.gz | docker compose exec -T db psql -U finance -d finance
+```
+
+Di server baru: buat ulang `rclone.conf` dengan langkah di atas, tapi pada remote `crypt` pilih
+**`y`** (masukkan password sendiri) dan isi kedua password dari password manager.
 
 ## Troubleshooting
 
-| Gejala                                        | Penyebab umum                                                                                                            |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Google: `redirect_uri_mismatch`               | `APP_URL` di `.env` tidak sama persis dengan redirect URI di Google Console (cek `https`, subdomain, tanpa `/` di akhir) |
-| Kembali ke login dengan "tidak punya akses"   | Email belum ada di `ALLOWED_EMAILS` atau di _Test users_ Google                                                          |
-| Cloudflare error 502 / 1033                   | Container `app` belum healthy, atau service URL tunnel bukan `http://app:3000` (mis. diisi IP server)                    |
+| Gejala                                        | Penyebab umum                                                                                                                                                                      |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Google: `redirect_uri_mismatch`               | `APP_URL` di `.env` tidak sama persis dengan redirect URI di Google Console (cek `https`, subdomain, tanpa `/` di akhir)                                                           |
+| Kembali ke login dengan "tidak punya akses"   | Email belum ada di `ALLOWED_EMAILS` atau di _Test users_ Google                                                                                                                    |
+| Cloudflare error 502 / 1033                   | Container `app` belum healthy, atau service URL tunnel bukan `http://app:3000` (mis. diisi IP server)                                                                              |
 | Domain "not resolved" / `NXDOMAIN`            | DNS router/ISP masih menyimpan jawaban "tidak ada" dari sebelum route dibuat (sampai 30 menit). Cek `nslookup <domain> 1.1.1.1`; kalau di situ sudah ada IP, tunggu atau flush DNS |
-| `docker compose up` gagal "set X in .env"     | Variabel wajib di `.env` masih kosong                                                                                    |
-| App tidak bisa diakses setelah restart server | `sudo systemctl enable --now docker`, lalu `docker compose ps`                                                           |
+| `docker compose up` gagal "set X in .env"     | Variabel wajib di `.env` masih kosong                                                                                                                                              |
+| App tidak bisa diakses setelah restart server | `sudo systemctl enable --now docker`, lalu `docker compose ps`                                                                                                                     |

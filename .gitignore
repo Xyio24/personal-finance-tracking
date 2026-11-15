@@ -23,6 +23,9 @@ apps/web/public/my-face.svg
 
 # Database backups / dumps (contain personal financial data)
 backups/
+restore/
+# rclone config: cloud login + backup encryption passwords
+rclone/
 *.sql.gz
 *.dump
 
