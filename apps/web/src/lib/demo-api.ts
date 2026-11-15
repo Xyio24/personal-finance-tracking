@@ -399,8 +399,14 @@ function debtsRoute(
       const isOpening = isOpeningOf(debt.id)
       const opening = db.transactions.find(isOpening)
       if (!wallet) db.transactions = db.transactions.filter((t) => !isOpening(t))
-      else if (opening) Object.assign(opening, openingMove(debt, wallet), { id: opening.id })
-      else db.transactions.push(openingMove(debt, wallet))
+      else if (opening) {
+        Object.assign(opening, {
+          type: debtOpeningType(debt.direction),
+          amount: debt.amount,
+          accountId: wallet,
+          date: debt.date,
+        })
+      } else db.transactions.push(openingMove(debt, wallet))
     }
     return debtsWithTotals(db).find((d) => d.id === debt.id)
   }

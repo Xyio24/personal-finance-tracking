@@ -1,5 +1,9 @@
 import type { Account, Debt, MonthlyTotal, Transaction } from '@finance/shared'
+import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { db } from '../db/client'
+import { debts } from '../db/schema'
+import { isStillReferenced } from '../lib/db-errors'
 import { ensureUserDefaults } from '../services/defaults'
 import { resetDatabase, signIn, type TestClient } from '../test/helpers'
 
@@ -246,6 +250,17 @@ describe('debts', () => {
         body: { error: 'invalid_account' },
       },
     )
+  })
+
+  it('recognises the foreign key refusing to delete a debt that still has moves', async () => {
+    // Backs the race guard in DELETE: a payment recorded between the check and the delete.
+    const { client, bank } = await setup()
+    const { body: debt } = await lend(client, bank.id)
+    const error = await db
+      .delete(debts)
+      .where(eq(debts.id, debt.id))
+      .catch((e: unknown) => e)
+    expect(isStillReferenced(error)).toBe(true)
   })
 
   it('only lets the debt change its opening move', async () => {

@@ -8,6 +8,7 @@ import { and, eq, inArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { db } from '../db/client'
 import { accounts, debts, transactions } from '../db/schema'
+import { isStillReferenced } from '../lib/db-errors'
 import { apiError, idParam, validate } from '../lib/validate'
 import { type AuthEnv, requireAuth } from '../middleware/auth'
 import { findDebt, listDebts, OPENING_TYPES } from '../services/debts'
@@ -157,11 +158,24 @@ debtRoutes.delete('/:id', idParam, validate('query', cascadeDeleteQuerySchema), 
   if (!existing) return apiError(c, 'not_found', 404)
   if (existing.paid > 0 && !withTransactions) return apiError(c, 'debt_has_payments', 409)
 
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(transactions)
-      .where(and(eq(transactions.userId, userId), eq(transactions.debtId, id)))
-    await tx.delete(debts).where(and(eq(debts.id, id), eq(debts.userId, userId)))
-  })
+  try {
+    await db.transaction(async (tx) => {
+      // Without the opt-in only the opening move goes, so a payment recorded since the check
+      // above keeps the debt in place (the foreign key refuses) instead of vanishing with it.
+      await tx
+        .delete(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.debtId, id),
+            withTransactions ? undefined : inArray(transactions.type, [...OPENING_TYPES]),
+          ),
+        )
+      await tx.delete(debts).where(and(eq(debts.id, id), eq(debts.userId, userId)))
+    })
+  } catch (error) {
+    if (isStillReferenced(error)) return apiError(c, 'debt_has_payments', 409)
+    throw error
+  }
   return c.body(null, 204)
 })

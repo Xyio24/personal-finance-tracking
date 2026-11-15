@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { db } from '../db/client'
 import { savingsGoals, transactions } from '../db/schema'
+import { isStillReferenced } from '../lib/db-errors'
 import { toGoal } from '../lib/dto'
 import { apiError, idParam, validate } from '../lib/validate'
 import { type AuthEnv, requireAuth } from '../middleware/auth'
@@ -67,16 +68,26 @@ savingsRoutes.delete('/:id', idParam, validate('query', cascadeDeleteQuerySchema
 
   if (!withTransactions && (await isGoalUsed(userId, id))) return apiError(c, 'in_use', 409)
 
-  const deleted = await db.transaction(async (tx) => {
-    await tx
-      .delete(transactions)
-      .where(and(eq(transactions.userId, userId), eq(transactions.goalId, id)))
-    const [row] = await tx
-      .delete(savingsGoals)
-      .where(and(eq(savingsGoals.id, id), eq(savingsGoals.userId, userId)))
-      .returning({ id: savingsGoals.id })
-    return row
-  })
+  let deleted: { id: string } | undefined
+  try {
+    deleted = await db.transaction(async (tx) => {
+      // Without the opt-in nothing else is touched: an isi/culik recorded since the check above
+      // keeps the goal in place (the foreign key refuses) instead of vanishing with it.
+      if (withTransactions) {
+        await tx
+          .delete(transactions)
+          .where(and(eq(transactions.userId, userId), eq(transactions.goalId, id)))
+      }
+      const [row] = await tx
+        .delete(savingsGoals)
+        .where(and(eq(savingsGoals.id, id), eq(savingsGoals.userId, userId)))
+        .returning({ id: savingsGoals.id })
+      return row
+    })
+  } catch (error) {
+    if (isStillReferenced(error)) return apiError(c, 'in_use', 409)
+    throw error
+  }
   if (!deleted) return apiError(c, 'not_found', 404)
 
   return c.body(null, 204)
