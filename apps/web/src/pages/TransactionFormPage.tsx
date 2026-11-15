@@ -86,7 +86,7 @@ export function TransactionFormPage() {
 
 function Screen({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mx-auto min-h-dvh max-w-md">
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col">
       <SubPageHeader title={title} backTo="/transaksi" />
       {children}
     </div>
@@ -235,11 +235,7 @@ function TransactionForm({
         }
       />
 
-      <form
-        id="transaction-form"
-        onSubmit={submit}
-        className="space-y-6 px-4 pb-[calc(env(safe-area-inset-bottom)+6rem)]"
-      >
+      <form id="transaction-form" onSubmit={submit} className="flex-1 space-y-6 px-4 pb-6">
         <SegmentedControl
           label="Jenis transaksi"
           value={draft.type}
@@ -374,18 +370,17 @@ function TransactionForm({
         )}
       </form>
 
-      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-        <div className="mx-auto max-w-md">
-          <button
-            type="submit"
-            form="transaction-form"
-            disabled={!valid || save.isPending}
-            className={primaryButtonClass}
-          >
-            {save.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
-            Simpan
-          </button>
-        </div>
+      {/* Sticky, not fixed: it moves with the page when the page slides in. */}
+      <div className="sticky bottom-0 z-10 mt-auto border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+        <button
+          type="submit"
+          form="transaction-form"
+          disabled={!valid || save.isPending}
+          className={primaryButtonClass}
+        >
+          {save.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+          Simpan
+        </button>
       </div>
 
       {existing && (

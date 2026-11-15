@@ -13,9 +13,11 @@ import './index.css'
 import { meKey } from './lib/auth'
 import { isDemo } from './lib/demo'
 import { ApiError } from './lib/errors'
+import { setupNavigation } from './lib/navigation'
 import { setupPwa } from './lib/pwa'
 
 setupPwa()
+setupNavigation()
 // TanStack Query assumes "online" until the first online/offline event. Start from the real state
 // so requests made while offline (e.g. opening the installed app) wait for the connection instead
 // of failing; they resume by themselves once the device is back online.

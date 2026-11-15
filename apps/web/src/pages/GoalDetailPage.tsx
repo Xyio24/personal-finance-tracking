@@ -7,7 +7,7 @@ import {
 } from '@finance/shared'
 import { ArchiveRestore, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { CategoryBadge } from '../components/Badges'
 import { ConfirmSheet } from '../components/ConfirmSheet'
 import { GoalForm } from '../components/GoalForm'
@@ -25,6 +25,7 @@ import {
   formatSignedRupiah,
   todayKey,
 } from '../lib/format'
+import { useGoBack } from '../lib/navigation'
 import {
   useAccounts,
   useDeleteGoal,
@@ -36,7 +37,7 @@ import {
 
 export function GoalDetailPage() {
   const { id = '' } = useParams()
-  const navigate = useNavigate()
+  const goBack = useGoBack('/tabungan')
   const goals = useSavingsGoals()
   const accounts = useAccounts()
   const history = useGoalHistory(id)
@@ -339,10 +340,7 @@ export function GoalDetailPage() {
         pending={removeGoal.isPending}
         error={removeGoal.error ? errorMessage(removeGoal.error) : null}
         onConfirm={() =>
-          removeGoal.mutate(
-            { id: goal.id, withTransactions: hasMoves },
-            { onSuccess: () => navigate('/tabungan', { replace: true }) },
-          )
+          removeGoal.mutate({ id: goal.id, withTransactions: hasMoves }, { onSuccess: goBack })
         }
         onClose={() => {
           setDeleting(false)

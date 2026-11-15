@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Outlet } from 'react-router'
 import { isDemo } from '../lib/demo'
 import { BottomNav } from './BottomNav'
+import { PageFrame } from './PageFrame'
 import { QuickAddSheet } from './QuickAddSheet'
 
 /** Mobile-first layout: content column + fixed bottom navigation with a center "+" button. */
@@ -15,7 +15,7 @@ export function AppShell() {
           Mode demo — login Google dilewati, data tidak tersimpan
         </p>
       )}
-      <Outlet />
+      <PageFrame />
       <BottomNav onQuickAdd={() => setQuickAddOpen(true)} />
       <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
     </div>

@@ -9,7 +9,7 @@ import {
   Undo2,
 } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { ConfirmSheet } from '../components/ConfirmSheet'
 import { DebtForm } from '../components/DebtForm'
 import { DebtPaymentForm } from '../components/DebtPaymentForm'
@@ -20,6 +20,7 @@ import { HeaderIconButton, SubPageHeader } from '../components/SubPageHeader'
 import { cardClass, primaryButtonClass, secondaryButtonClass } from '../components/ui'
 import { errorMessage } from '../lib/errors'
 import { formatDate, formatDayHeading, formatShare, todayKey } from '../lib/format'
+import { useGoBack } from '../lib/navigation'
 import {
   useAccounts,
   useDebtHistory,
@@ -33,7 +34,7 @@ const isOpening = (t: Transaction) => t.type === 'debt_borrow' || t.type === 'de
 
 export function DebtDetailPage() {
   const { id = '' } = useParams()
-  const navigate = useNavigate()
+  const goBack = useGoBack('/hutang')
   const debts = useDebts()
   const accounts = useAccounts()
   const history = useDebtHistory(id)
@@ -339,10 +340,7 @@ export function DebtDetailPage() {
         pending={removeDebt.isPending}
         error={removeDebt.error ? errorMessage(removeDebt.error) : null}
         onConfirm={() =>
-          removeDebt.mutate(
-            { id: debt.id, withTransactions: debt.paid > 0 },
-            { onSuccess: () => navigate('/hutang', { replace: true }) },
-          )
+          removeDebt.mutate({ id: debt.id, withTransactions: debt.paid > 0 }, { onSuccess: goBack })
         }
         onClose={() => {
           setDeleting(false)

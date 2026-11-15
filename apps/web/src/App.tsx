@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { AppShell } from './components/AppShell'
+import { NavigationEffects } from './components/NavigationEffects'
 import { OfflineNotice } from './components/OfflineNotice'
+import { PageFrame } from './components/PageFrame'
 import { RequireAuth } from './components/RequireAuth'
 import { AccountsPage } from './pages/AccountsPage'
 import { CategoriesPage } from './pages/CategoriesPage'
@@ -35,11 +37,14 @@ export function App() {
             <Route path="pengaturan/kategori" element={<CategoriesPage />} />
           </Route>
           {/* Full-screen forms, without the bottom navigation. */}
-          <Route path="transaksi/baru" element={<TransactionFormPage />} />
-          <Route path="transaksi/:id" element={<TransactionFormPage />} />
+          <Route element={<PageFrame />}>
+            <Route path="transaksi/baru" element={<TransactionFormPage />} />
+            <Route path="transaksi/:id" element={<TransactionFormPage />} />
+          </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <NavigationEffects />
     </>
   )
 }

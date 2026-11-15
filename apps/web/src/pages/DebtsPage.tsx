@@ -18,6 +18,7 @@ import { Sheet } from '../components/Sheet'
 import { HeaderIconButton } from '../components/SubPageHeader'
 import { cardClass, primaryButtonClass } from '../components/ui'
 import { formatDate, formatSignedRupiah, todayKey } from '../lib/format'
+import { useChoiceParam } from '../lib/navigation'
 import { useAccounts, useDebts } from '../lib/queries'
 
 /** Most urgent first: overdue, due soon, then by due date, then the oldest. */
@@ -33,7 +34,11 @@ export function DebtsPage() {
   const debts = useDebts()
   const accounts = useAccounts()
   const navigate = useNavigate()
-  const [side, setSide] = useState<DebtDirection>('payable')
+  const [side, setSide] = useChoiceParam<DebtDirection>(
+    'sisi',
+    { payable: 'hutang', receivable: 'piutang' },
+    'payable',
+  )
   const [creating, setCreating] = useState(false)
   const today = todayKey()
 

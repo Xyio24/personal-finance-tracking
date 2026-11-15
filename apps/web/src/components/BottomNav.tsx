@@ -1,5 +1,5 @@
 import { ArrowLeftRight, HandCoins, House, type LucideIcon, PiggyBank, Plus } from 'lucide-react'
-import { NavLink } from 'react-router'
+import { NavLink, useLocation } from 'react-router'
 
 type Tab = { to: string; label: string; icon: LucideIcon; end?: boolean }
 
@@ -13,10 +13,18 @@ const rightTabs: Tab[] = [
 ]
 
 function TabLink({ to, label, icon: Icon, end }: Tab) {
+  const { pathname } = useLocation()
   return (
     <NavLink
       to={to}
       end={end}
+      // Tapping the tab you are on, scrolled down, goes back to the top first (like native apps).
+      onClick={(e) => {
+        if (pathname !== to || window.scrollY <= 0) return
+        e.preventDefault()
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+      }}
       className={({ isActive }) =>
         `flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${
           isActive
