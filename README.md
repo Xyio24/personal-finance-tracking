@@ -51,9 +51,22 @@ Cara membuat Google OAuth client ada di [docs/DEPLOY.md](docs/DEPLOY.md#3-google
 Untuk development, tambahkan juga `http://localhost:5173/api/auth/google/callback` sebagai
 redirect URI.
 
+### Preview tanpa login (mode demo)
+
+Mau lihat tampilannya dulu tanpa Google OAuth, database, atau `.env`?
+
+```bash
+npm install
+npm run dev:demo            # buka http://localhost:5173
+```
+
+Mode demo hanya ada di frontend: login dilewati dengan user palsu dan data tidak tersimpan.
+API tetap mewajibkan session asli, dan build production tidak berisi kode demo sama sekali.
+
 | Perintah                    | Fungsi                                                              |
 | --------------------------- | ------------------------------------------------------------------- |
 | `npm run dev`               | Jalankan API + web dengan hot reload                                |
+| `npm run dev:demo`          | Preview UI tanpa login, API, dan database                           |
 | `npm run db:up` / `db:down` | Nyalakan / matikan database dev                                     |
 | `npm run db:generate`       | Buat file migrasi baru setelah mengubah `apps/api/src/db/schema.ts` |
 | `npm run db:migrate`        | Terapkan migrasi (API juga menjalankannya otomatis saat start)      |
