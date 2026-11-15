@@ -23,7 +23,9 @@ export function Sheet({ open, onClose, title, children }: Props) {
     // biome-ignore lint/a11y/useKeyWithClickEvents: the click only catches backdrop taps; keyboard users close with Escape, which <dialog> handles natively
     <dialog
       ref={ref}
-      onClose={onClose}
+      // React passes a nested dialog's close event up the component tree, so closing a
+      // confirmation opened from inside this sheet would close this sheet too. Only react to our own.
+      onClose={(e) => e.target === e.currentTarget && onClose()}
       // Tapping the dimmed backdrop (the dialog element itself) closes the sheet.
       onClick={(e) => e.target === e.currentTarget && onClose()}
       aria-label={title}
