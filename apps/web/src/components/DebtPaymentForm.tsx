@@ -132,12 +132,6 @@ export function DebtPaymentForm({
         />
       </div>
 
-      {save.error && (
-        <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
-          {errorMessage(save.error)}
-        </p>
-      )}
-
       {payment && onDelete && (
         <button type="button" onClick={onDelete} className={dangerButtonClass}>
           <Trash2 className="size-4" aria-hidden />
@@ -145,7 +139,7 @@ export function DebtPaymentForm({
         </button>
       )}
 
-      <SheetFooter>
+      <SheetFooter error={save.error ? errorMessage(save.error) : null}>
         <button type="submit" disabled={!valid || save.isPending} className={primaryButtonClass}>
           {save.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
           {payment ? 'Simpan' : payable ? 'Bayar' : 'Terima'}

@@ -197,12 +197,6 @@ function CategoryForm({
       <IconPicker value={icon} color={color} onChange={setIcon} />
       <ColorPicker value={color} onChange={setColor} />
 
-      {saveError && (
-        <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
-          {errorMessage(saveError)}
-        </p>
-      )}
-
       {category && (
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -265,7 +259,7 @@ function CategoryForm({
         />
       )}
 
-      <SheetFooter>
+      <SheetFooter error={saveError ? errorMessage(saveError) : null}>
         <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
           {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
           Simpan

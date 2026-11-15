@@ -169,52 +169,43 @@ export function GoalForm({
       <IconPicker value={icon} color={color} onChange={setIcon} />
       <ColorPicker value={color} onChange={setColor} />
 
-      {saveError && (
-        <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
-          {errorMessage(saveError)}
-        </p>
-      )}
-
       {goal && (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() =>
-                update.mutate(
-                  { id: goal.id, archived: !goal.archived },
-                  {
-                    onSuccess: (saved) => {
-                      undoable(
-                        `"${goal.name}" ${goal.archived ? 'aktif lagi' : 'diarsipkan'}`,
-                        () => setArchived('savings', goal.id, goal.archived),
-                      )
-                      onDone(saved)
-                    },
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() =>
+              update.mutate(
+                { id: goal.id, archived: !goal.archived },
+                {
+                  onSuccess: (saved) => {
+                    undoable(`"${goal.name}" ${goal.archived ? 'aktif lagi' : 'diarsipkan'}`, () =>
+                      setArchived('savings', goal.id, goal.archived),
+                    )
+                    onDone(saved)
                   },
-                )
-              }
-              className={secondaryButtonClass}
-            >
-              {goal.archived ? (
-                <ArchiveRestore className="size-4" aria-hidden />
-              ) : (
-                <Archive className="size-4" aria-hidden />
-              )}
-              {goal.archived ? 'Aktifkan' : 'Arsipkan'}
-            </button>
-            {onDelete && (
-              <button type="button" onClick={onDelete} className={dangerButtonClass}>
-                <Trash2 className="size-4" aria-hidden />
-                Hapus
-              </button>
+                },
+              )
+            }
+            className={secondaryButtonClass}
+          >
+            {goal.archived ? (
+              <ArchiveRestore className="size-4" aria-hidden />
+            ) : (
+              <Archive className="size-4" aria-hidden />
             )}
-          </div>
-        </>
+            {goal.archived ? 'Aktifkan' : 'Arsipkan'}
+          </button>
+          {onDelete && (
+            <button type="button" onClick={onDelete} className={dangerButtonClass}>
+              <Trash2 className="size-4" aria-hidden />
+              Hapus
+            </button>
+          )}
+        </div>
       )}
 
-      <SheetFooter>
+      <SheetFooter error={saveError ? errorMessage(saveError) : null}>
         <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
           {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
           Simpan

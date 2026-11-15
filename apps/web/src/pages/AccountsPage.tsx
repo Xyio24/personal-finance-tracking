@@ -208,12 +208,6 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
         </p>
       </div>
 
-      {saveError && (
-        <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
-          {errorMessage(saveError)}
-        </p>
-      )}
-
       {account && (
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -276,7 +270,7 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
         />
       )}
 
-      <SheetFooter>
+      <SheetFooter error={saveError ? errorMessage(saveError) : null}>
         <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
           {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
           Simpan

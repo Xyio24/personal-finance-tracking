@@ -18,15 +18,8 @@ export function ConfirmSheet(props: Props) {
   const { open, title, message, confirmLabel, pending, error, onConfirm, onClose } = props
   return (
     <Sheet open={open} onClose={onClose} title={title}>
-      <div className="space-y-3 pb-3">
-        <p className="text-slate-600 dark:text-slate-300">{message}</p>
-        {error && (
-          <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
-            {error}
-          </p>
-        )}
-      </div>
-      <SheetFooter>
+      <p className="pb-3 text-slate-600 dark:text-slate-300">{message}</p>
+      <SheetFooter error={error}>
         <div className="grid grid-cols-2 gap-3">
           <button type="button" onClick={onClose} className={secondaryButtonClass}>
             Batal

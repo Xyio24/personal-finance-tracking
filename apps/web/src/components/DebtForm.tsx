@@ -204,18 +204,6 @@ export function DebtForm({
         />
       </div>
 
-      {walletNotice && (
-        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
-          {walletNotice}
-        </p>
-      )}
-
-      {saveError && (
-        <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
-          {errorMessage(saveError)}
-        </p>
-      )}
-
       {debt && onDelete && (
         <button type="button" onClick={onDelete} className={dangerButtonClass}>
           <Trash2 className="size-4" aria-hidden />
@@ -223,7 +211,7 @@ export function DebtForm({
         </button>
       )}
 
-      <SheetFooter>
+      <SheetFooter notice={walletNotice} error={saveError ? errorMessage(saveError) : null}>
         <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
           {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
           Simpan

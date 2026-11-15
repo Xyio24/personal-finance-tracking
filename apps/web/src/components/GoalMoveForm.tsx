@@ -141,12 +141,6 @@ export function GoalMoveForm({
         />
       </div>
 
-      {save.error && (
-        <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
-          {errorMessage(save.error)}
-        </p>
-      )}
-
       {move && onDelete && (
         <button type="button" onClick={onDelete} className={dangerButtonClass}>
           <Trash2 className="size-4" aria-hidden />
@@ -154,7 +148,7 @@ export function GoalMoveForm({
         </button>
       )}
 
-      <SheetFooter>
+      <SheetFooter error={save.error ? errorMessage(save.error) : null}>
         <button type="submit" disabled={!valid || save.isPending} className={primaryButtonClass}>
           {save.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
           {move ? 'Simpan' : isDeposit ? 'Isi tabungan' : 'Culik 🥷'}

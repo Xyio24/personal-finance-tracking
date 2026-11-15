@@ -83,7 +83,9 @@ export function Sheet({ open, onClose, title, children }: Props) {
   }, [isOpen])
 
   // Content scrolls beneath the sticky header and footer: draw a divider on the edge it passes
-  // under, and keep a field that gets focus (Tab, or the keyboard opening) clear of both.
+  // under, and publish their heights so a field that gets focus (Tab, or the keyboard opening)
+  // stops clear of both (scroll-margin in index.css). Not scroll-padding on the dialog: that
+  // would also count the bars' own buttons as hidden and jump to the top or end on focus.
   useLayoutEffect(() => {
     const dialog = ref.current
     const top = header.current
@@ -93,8 +95,8 @@ export function Sheet({ open, onClose, title, children }: Props) {
       const below = dialog.scrollHeight - dialog.scrollTop - dialog.clientHeight
       top.toggleAttribute('data-scrolled', dialog.scrollTop > 0)
       footer?.toggleAttribute('data-stuck', below > 1)
-      dialog.style.scrollPaddingTop = `${top.offsetHeight}px`
-      dialog.style.scrollPaddingBottom = footer ? `${footer.offsetHeight}px` : ''
+      dialog.style.setProperty('--sheet-top', `${top.offsetHeight}px`)
+      dialog.style.setProperty('--sheet-bottom', `${footer?.offsetHeight ?? 0}px`)
     }
     update()
     dialog.addEventListener('scroll', update, { passive: true })
@@ -204,15 +206,36 @@ export function Sheet({ open, onClose, title, children }: Props) {
  * beneath them, so they stay one tap away (on Android, right above the keyboard). When the
  * content is short it just sits after it. Put it last in the sheet: in a form, last in the
  * <form>, after any secondary actions such as "Hapus".
+ *
+ * What pressing the button will do (`notice`) and why it just failed (`error`) show here too,
+ * next to the button: in the content they could be a whole screen below the pinned "Simpan".
  */
-export function SheetFooter({ children }: { children: ReactNode }) {
+export function SheetFooter({
+  children,
+  notice,
+  error,
+}: {
+  children: ReactNode
+  notice?: ReactNode
+  error?: string | null
+}) {
   const register = useContext(FooterSlot)
   return (
     <div
       ref={register ?? undefined}
       data-sheet-footer
-      className="sheet-footer sticky bottom-0 z-10 -mx-4 border-t border-transparent bg-white px-4 pt-3 transition-colors data-stuck:border-slate-200 dark:bg-slate-900 dark:data-stuck:border-slate-800"
+      className="sheet-footer sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-transparent bg-white px-4 pt-3 transition-colors data-stuck:border-slate-200 dark:bg-slate-900 dark:data-stuck:border-slate-800"
     >
+      {notice && (
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+          {notice}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
+          {error}
+        </p>
+      )}
       {children}
     </div>
   )
