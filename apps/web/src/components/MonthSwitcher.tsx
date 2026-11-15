@@ -4,7 +4,7 @@ import { formatMonth } from '../lib/format'
 import { cardClass } from './ui'
 
 const arrowClass =
-  'rounded-xl p-2 text-slate-600 active:bg-slate-100 dark:text-slate-300 dark:active:bg-slate-800'
+  'rounded-xl p-2.5 text-slate-600 active:bg-slate-100 dark:text-slate-300 dark:active:bg-slate-800'
 
 export function MonthSwitcher({
   month,

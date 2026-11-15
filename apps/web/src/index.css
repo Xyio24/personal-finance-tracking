@@ -39,6 +39,20 @@
   body {
     @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
   }
+
+  /* The on-screen keyboard is up: the bottom navigation would sit on top of it. */
+  body:has(:is(input:not([type="date"]), textarea):focus) [data-bottom-nav] {
+    display: none;
+  }
+
+  /* Long-pressing a row or button shouldn't open a link preview or select its text. */
+  a,
+  button,
+  [role="radio"] {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }
 
 @layer components {

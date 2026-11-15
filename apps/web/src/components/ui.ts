@@ -6,7 +6,7 @@ export const inputClass =
 export const labelClass = 'mb-1.5 block text-sm font-medium text-slate-600 dark:text-slate-300'
 
 const buttonBase =
-  'flex h-12 w-full items-center justify-center gap-2 rounded-xl font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 disabled:opacity-50'
+  'flex h-12 w-full items-center justify-center gap-2 rounded-xl font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 motion-reduce:active:scale-100'
 
 export const primaryButtonClass = `${buttonBase} bg-emerald-600 text-white active:bg-emerald-700`
 

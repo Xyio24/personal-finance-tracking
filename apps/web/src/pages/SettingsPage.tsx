@@ -22,7 +22,7 @@ import { isIos, isStandalone, useInstallPrompt } from '../lib/pwa'
 const listClass =
   'mx-4 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white dark:divide-slate-800 dark:bg-slate-900'
 const rowClass = 'flex w-full items-center gap-3 px-4 py-3 text-left'
-const pressableClass = `${rowClass} active:bg-slate-50 dark:active:bg-slate-800`
+const pressableClass = `${rowClass} transition-colors active:bg-slate-100 dark:active:bg-slate-800`
 
 export function SettingsPage() {
   const user = useCurrentUser()

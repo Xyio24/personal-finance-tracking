@@ -41,7 +41,10 @@ function TabLink({ to, label, icon: Icon, end }: Tab) {
 
 export function BottomNav({ onQuickAdd }: { onQuickAdd: () => void }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+    <nav
+      data-bottom-nav
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95"
+    >
       <div className="mx-auto grid max-w-md grid-cols-5">
         {leftTabs.map((tab) => (
           <TabLink key={tab.to} {...tab} />

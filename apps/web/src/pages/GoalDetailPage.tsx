@@ -63,7 +63,9 @@ export function GoalDetailPage() {
         {failed ? (
           <LoadError error={failed.error} onRetry={() => failed.refetch()} />
         ) : goals.data && accounts.data ? (
-          <p className={`mx-4 p-5 text-center text-sm text-slate-500 ${cardClass}`}>
+          <p
+            className={`mx-4 p-5 text-center text-sm text-slate-500 dark:text-slate-400 ${cardClass}`}
+          >
             Tabungan ini tidak ditemukan, mungkin sudah dihapus.{' '}
             <Link to="/tabungan" className="font-medium text-emerald-600 underline">
               Kembali ke daftar
@@ -248,7 +250,7 @@ export function GoalDetailPage() {
                       type="button"
                       onClick={() => setEditingMove(t)}
                       aria-label={`Ubah ${isDeposit ? 'isi' : 'culik'} ${formatRupiah(t.amount)}, ${formatDate(t.date)}`}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800"
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-slate-100 dark:active:bg-slate-800"
                     >
                       <span
                         className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-lg ${

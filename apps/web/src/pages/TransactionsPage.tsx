@@ -130,6 +130,12 @@ export function TransactionsPage() {
             placeholder="Cari catatan atau kategori"
             aria-label="Cari transaksi di semua bulan"
             maxLength={100}
+            enterKeyHint="search"
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              update({ q: text.trim() })
+              e.currentTarget.blur()
+            }}
             className={`${inputClass} pr-10 pl-11 [&::-webkit-search-cancel-button]:hidden`}
           />
           {text && (
@@ -140,7 +146,7 @@ export function TransactionsPage() {
                 setText('')
                 update({ q: '' })
               }}
-              className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1.5 text-slate-400 active:bg-slate-100 dark:active:bg-slate-800"
+              className="absolute top-1/2 right-1 flex size-10 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 active:bg-slate-100 dark:active:bg-slate-800"
             >
               <X className="size-4" aria-hidden />
             </button>
@@ -169,7 +175,7 @@ export function TransactionsPage() {
               type="button"
               onClick={() => update({ [chip.key]: undefined })}
               aria-label={`Hapus filter ${chip.label}`}
-              className="flex h-8 items-center gap-1.5 rounded-full bg-emerald-50 pr-2.5 pl-3 text-xs font-medium text-emerald-800 active:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
+              className="flex h-9 items-center gap-1.5 rounded-full bg-emerald-50 pr-2.5 pl-3 text-xs font-medium text-emerald-800 active:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
             >
               {chip.label}
               <X className="size-3.5" aria-hidden />

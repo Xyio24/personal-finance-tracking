@@ -62,7 +62,16 @@ export function AccountsPage() {
 
           <AccountList accounts={active} onSelect={setEditing} />
           {active.length === 0 && (
-            <p className="mx-4 text-sm text-slate-500">Belum ada dompet aktif. Tambahkan satu.</p>
+            <div className={`mx-4 p-5 text-center ${cardClass}`}>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Belum ada dompet aktif.</p>
+              <button
+                type="button"
+                onClick={() => setEditing('new')}
+                className={`${primaryButtonClass} mt-3`}
+              >
+                Tambah dompet
+              </button>
+            </div>
           )}
 
           {archived.length > 0 && (
@@ -110,7 +119,7 @@ function AccountList({
           <button
             type="button"
             onClick={() => onSelect(account)}
-            className="flex w-full items-center gap-3 p-4 text-left active:bg-slate-50 dark:active:bg-slate-800"
+            className="flex w-full items-center gap-3 p-4 text-left transition-colors active:bg-slate-100 dark:active:bg-slate-800"
           >
             <AccountBadge type={account.type} />
             <span className="min-w-0 flex-1">

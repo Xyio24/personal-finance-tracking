@@ -71,7 +71,16 @@ export function CategoriesPage() {
         <>
           <CategoryList categories={active} onSelect={setEditing} />
           {active.length === 0 && (
-            <p className="mx-4 text-sm text-slate-500">Belum ada kategori. Tambahkan satu.</p>
+            <div className={`mx-4 p-5 text-center ${cardClass}`}>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Belum ada kategori.</p>
+              <button
+                type="button"
+                onClick={() => setEditing('new')}
+                className={`${primaryButtonClass} mt-3`}
+              >
+                Tambah kategori
+              </button>
+            </div>
           )}
           {archived.length > 0 && (
             <>
@@ -119,7 +128,7 @@ function CategoryList({
           <button
             type="button"
             onClick={() => onSelect(category)}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800"
+            className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-slate-100 dark:active:bg-slate-800"
           >
             <CategoryBadge icon={category.icon} color={category.color} size="sm" />
             <span className="min-w-0 flex-1 truncate font-medium">{category.name}</span>

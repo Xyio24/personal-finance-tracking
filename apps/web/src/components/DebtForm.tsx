@@ -181,6 +181,7 @@ export function DebtForm({
           maxLength={200}
           placeholder="Opsional, mis. buat servis motor"
           autoComplete="off"
+          enterKeyHint="done"
         />
       </div>
 

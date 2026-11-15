@@ -62,7 +62,9 @@ export function DebtDetailPage() {
         {failed ? (
           <LoadError error={failed.error} onRetry={() => failed.refetch()} />
         ) : debts.data && accounts.data ? (
-          <p className={`mx-4 p-5 text-center text-sm text-slate-500 ${cardClass}`}>
+          <p
+            className={`mx-4 p-5 text-center text-sm text-slate-500 dark:text-slate-400 ${cardClass}`}
+          >
             Catatan ini tidak ditemukan, mungkin sudah dihapus.{' '}
             <Link to="/hutang" className="font-medium text-emerald-600 underline">
               Kembali ke daftar
@@ -257,7 +259,7 @@ export function DebtDetailPage() {
                       type="button"
                       onClick={() => (opening ? setEditing(true) : setEditingPayment(t))}
                       aria-label={`${opening ? 'Ubah catatan' : 'Ubah pembayaran'} ${formatRupiah(t.amount)}, ${formatDate(t.date)}`}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800"
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-slate-100 dark:active:bg-slate-800"
                     >
                       <span
                         aria-hidden

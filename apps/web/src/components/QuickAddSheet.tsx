@@ -39,7 +39,7 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
               onClose()
               navigate(`/transaksi/baru?type=${type}`)
             }}
-            className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 p-4 text-sm font-medium active:bg-slate-50 dark:border-slate-800 dark:active:bg-slate-800"
+            className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 p-4 text-sm font-medium transition-colors active:bg-slate-100 dark:border-slate-800 dark:active:bg-slate-800"
           >
             <span className={`flex size-11 items-center justify-center rounded-xl ${tone}`}>
               <Icon className="size-6" aria-hidden />

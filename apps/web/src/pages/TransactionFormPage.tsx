@@ -358,6 +358,7 @@ function TransactionForm({
             maxLength={200}
             placeholder="Opsional, mis. nasi padang"
             autoComplete="off"
+            enterKeyHint="done"
             className={inputClass}
           />
         </div>

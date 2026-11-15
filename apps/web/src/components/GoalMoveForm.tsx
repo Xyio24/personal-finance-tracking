@@ -126,6 +126,7 @@ export function GoalMoveForm({
           maxLength={200}
           placeholder={isDeposit ? 'Opsional, mis. sisa gaji' : 'Opsional, mis. servis motor'}
           autoComplete="off"
+          enterKeyHint="done"
           className={inputClass}
         />
       </div>

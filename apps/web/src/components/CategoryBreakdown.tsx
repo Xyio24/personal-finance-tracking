@@ -49,7 +49,7 @@ export function CategoryBreakdown({ transactions, lookups, type, month, limit }:
           <li key={entry.categoryId}>
             <Link
               to={`/transaksi?bulan=${month}&kategori=${entry.categoryId}`}
-              className="block rounded-xl px-2 py-2 active:bg-slate-50 dark:active:bg-slate-800"
+              className="block rounded-xl px-2 py-2 transition-colors active:bg-slate-100 dark:active:bg-slate-800"
             >
               <span className="flex items-center gap-3">
                 <CategoryBadge

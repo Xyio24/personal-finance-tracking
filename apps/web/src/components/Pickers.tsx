@@ -160,7 +160,7 @@ export function DateField({
           aria-label="Pilih tanggal"
           value={value}
           onChange={(e) => e.target.value && onChange(e.target.value)}
-          className={`${inputClass} h-10 min-w-0 flex-1 px-3 text-sm`}
+          className={`${inputClass} h-10 min-w-0 flex-1 px-3`}
         />
       </div>
     </fieldset>

@@ -117,6 +117,7 @@ export function DebtPaymentForm({
           maxLength={200}
           placeholder="Opsional, mis. cicilan ke-2"
           autoComplete="off"
+          enterKeyHint="done"
           className={inputClass}
         />
       </div>

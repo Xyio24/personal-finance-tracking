@@ -99,7 +99,7 @@ export function TransactionRow({
   return (
     <Link
       to={href}
-      className="flex items-center gap-3 px-4 py-3 active:bg-slate-50 dark:active:bg-slate-800"
+      className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-slate-100 dark:active:bg-slate-800"
     >
       {badge}
       <span className="min-w-0 flex-1">

@@ -191,7 +191,7 @@ function DebtList({
           <li key={debt.id}>
             <Link
               to={`/hutang/${debt.id}`}
-              className={`block p-4 active:bg-slate-50 dark:active:bg-slate-800 ${cardClass}`}
+              className={`block p-4 transition active:scale-[0.98] active:bg-slate-100 motion-reduce:active:scale-100 dark:active:bg-slate-800 ${cardClass}`}
             >
               <span className="flex items-center gap-3">
                 <PersonAvatar debt={debt} />

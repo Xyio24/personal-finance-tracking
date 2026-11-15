@@ -125,7 +125,7 @@ export function HomePage() {
               <li key={debt.id}>
                 <Link
                   to={`/hutang/${debt.id}`}
-                  className="flex items-center gap-3 px-4 py-3 active:bg-slate-50 dark:active:bg-slate-800"
+                  className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-slate-100 dark:active:bg-slate-800"
                 >
                   <PersonAvatar debt={debt} />
                   <span className="min-w-0 flex-1">
@@ -164,8 +164,8 @@ export function HomePage() {
               : activeAccounts.map((account) => (
                   <Link
                     key={account.id}
-                    to="/pengaturan/dompet"
-                    className={`w-36 shrink-0 p-3 active:bg-slate-50 dark:active:bg-slate-800 ${cardClass}`}
+                    to={`/transaksi?dompet=${account.id}`}
+                    className={`w-36 shrink-0 p-3 transition active:scale-[0.98] active:bg-slate-100 motion-reduce:active:scale-100 dark:active:bg-slate-800 ${cardClass}`}
                   >
                     <AccountBadge type={account.type} size="sm" />
                     <p className="mt-2 truncate text-sm text-slate-500 dark:text-slate-400">
@@ -181,7 +181,7 @@ export function HomePage() {
             {savingsTotal !== undefined && (
               <Link
                 to="/tabungan"
-                className={`w-36 shrink-0 p-3 active:bg-slate-50 dark:active:bg-slate-800 ${cardClass}`}
+                className={`w-36 shrink-0 p-3 transition active:scale-[0.98] active:bg-slate-100 motion-reduce:active:scale-100 dark:active:bg-slate-800 ${cardClass}`}
               >
                 <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">
                   <PiggyBank className="size-4" aria-hidden />
