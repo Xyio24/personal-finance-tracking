@@ -1,0 +1,70 @@
+# Production stack for the home server. All real values come from .env (never committed).
+# Start/update:  docker compose up -d --build
+name: finance
+
+services:
+  app:
+    build: .
+    image: finance-app
+    restart: unless-stopped
+    # Only the variables the app needs — the tunnel token and DB password stay out of it.
+    environment:
+      APP_URL: ${APP_URL:?set APP_URL in .env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID in .env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?set GOOGLE_CLIENT_SECRET in .env}
+      ALLOWED_EMAILS: ${ALLOWED_EMAILS:?set ALLOWED_EMAILS in .env}
+      DATABASE_URL: postgres://finance:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/finance
+    depends_on:
+      db:
+        condition: service_healthy
+    # Reachable only from the server itself. The internet comes in through Cloudflare Tunnel.
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: finance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: finance
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance -d finance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Daily compressed pg_dump into ./backups (gitignored), keeping the last 30 days.
+  backup:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: finance
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      PGDATABASE: finance
+      BACKUP_KEEP_DAYS: 30
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Outbound-only connection to Cloudflare: no router port forwarding, works behind CGNAT,
+  # free HTTPS, and the home IP stays hidden.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.11.0
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  pgdata:

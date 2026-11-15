@@ -1,0 +1,24 @@
+# Local development database only (the API and web app run with `npm run dev`).
+# The credentials below are for this throwaway local database, bound to localhost.
+name: finance-dev
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: finance
+      POSTGRES_PASSWORD: finance
+      POSTGRES_DB: finance
+    # 5433 on the host so it never clashes with a locally installed PostgreSQL on 5432.
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata-dev:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance -d finance"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  pgdata-dev:

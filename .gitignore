@@ -1,0 +1,27 @@
+# Dependencies & build output
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# Secrets — never commit real values (this repo is public)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+cloudflared/
+
+# Database backups / dumps (contain personal financial data)
+backups/
+*.sql.gz
+*.dump
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log

@@ -1,0 +1,30 @@
+{
+  "name": "@finance/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
+    "build": "node build.mjs",
+    "start": "node --enable-source-maps dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file-if-exists=../../.env src/db/migrate-cli.ts"
+  },
+  "dependencies": {
+    "@finance/shared": "*",
+    "@hono/node-server": "^2.1.8",
+    "@hono/zod-validator": "^0.9.1",
+    "arctic": "^3.7.0",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.18",
+    "postgres": "^4.1.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
+  }
+}
