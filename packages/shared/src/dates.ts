@@ -24,6 +24,19 @@ export function shiftMonth(month: string, delta: number): string {
   return `${Math.floor(index / 12)}-${pad((index % 12) + 1)}`
 }
 
+/** Months from `from` to `to`, both included, oldest first. */
+export function monthsBetween(from: string, to: string): string[] {
+  const months: string[] = []
+  for (let month = from; month <= to; month = shiftMonth(month, 1)) months.push(month)
+  return months
+}
+
+/** Number of days in a "YYYY-MM" month. */
+export function daysInMonth(month: string): number {
+  const [year, mon] = month.split('-').map(Number) as [number, number]
+  return new Date(year, mon, 0).getDate()
+}
+
 /** Half-open date range of a month: start inclusive, end exclusive. */
 export function monthRange(month: string): { start: string; end: string } {
   return { start: `${month}-01`, end: `${shiftMonth(month, 1)}-01` }

@@ -11,6 +11,7 @@ import { authRoutes } from './routes/auth'
 import { categoryRoutes } from './routes/categories'
 import { healthRoutes } from './routes/health'
 import { meRoutes } from './routes/me'
+import { reportRoutes } from './routes/reports'
 import { transactionRoutes } from './routes/transactions'
 
 export function createApp() {
@@ -45,6 +46,7 @@ export function createApp() {
   app.route('/api/accounts', accountRoutes)
   app.route('/api/categories', categoryRoutes)
   app.route('/api/transactions', transactionRoutes)
+  app.route('/api/reports', reportRoutes)
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 
   // Production: the API also serves the built React app from the same origin.
