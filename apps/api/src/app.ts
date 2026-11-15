@@ -6,6 +6,7 @@ import { secureHeaders } from 'hono/secure-headers'
 import { env } from './env'
 import { rateLimit } from './middleware/rate-limit'
 import { requestLogger } from './middleware/request-logger'
+import { accountRoutes } from './routes/accounts'
 import { authRoutes } from './routes/auth'
 import { healthRoutes } from './routes/health'
 import { meRoutes } from './routes/me'
@@ -39,6 +40,7 @@ export function createApp() {
   app.route('/api/health', healthRoutes)
   app.route('/api/auth', authRoutes)
   app.route('/api/me', meRoutes)
+  app.route('/api/accounts', accountRoutes)
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 
   // Production: the API also serves the built React app from the same origin.
