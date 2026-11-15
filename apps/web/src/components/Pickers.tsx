@@ -22,7 +22,7 @@ export function IconPicker({
   onChange: (icon: CategoryIcon) => void
 }) {
   return (
-    <fieldset>
+    <fieldset className="min-w-0">
       <legend className={labelClass}>Ikon</legend>
       <div className="grid grid-cols-6 gap-2">
         {CATEGORY_ICONS.map((key) => {
@@ -58,7 +58,7 @@ export function ColorPicker({
   onChange: (color: CategoryColor) => void
 }) {
   return (
-    <fieldset>
+    <fieldset className="min-w-0">
       <legend className={labelClass}>Warna</legend>
       <div className="flex flex-wrap gap-2.5">
         {CATEGORY_COLORS.map((key) => (
@@ -93,7 +93,9 @@ export function AccountPicker({
   onChange: (id: string) => void
 }) {
   return (
-    <fieldset>
+    // min-w-0: a fieldset defaults to min-width: min-content and would grow with the chip row
+    // instead of letting the row scroll, pushing the whole sheet sideways.
+    <fieldset className="min-w-0">
       <legend className={labelClass}>{label}</legend>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
         {accounts.map((account) => (
@@ -123,7 +125,7 @@ export function DateField({
 }) {
   const today = todayKey()
   return (
-    <fieldset>
+    <fieldset className="min-w-0">
       <legend className={labelClass}>Tanggal</legend>
       <div className="flex gap-2">
         {[
