@@ -64,6 +64,8 @@ export function resetDemoData() {
 
 export async function demoRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   await new Promise((resolve) => setTimeout(resolve, 120)) // feel like a network round trip
+  // Like the real API, nothing gets through without a connection (fetch rejects the same way).
+  if (globalThis.navigator?.onLine === false) throw new TypeError('Failed to fetch')
   store ??= seed()
 
   const url = new URL(path, 'https://demo.invalid')
