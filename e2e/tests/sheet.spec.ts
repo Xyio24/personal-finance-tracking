@@ -177,6 +177,26 @@ test('"Simpan" stays at the bottom of a long sheet while the form scrolls beneat
   await expect(page.getByRole('heading', { name: 'Liburan' })).toBeVisible() // its detail page
 })
 
+test('a save that fails in a long form says why right above the pinned "Simpan"', async ({
+  page,
+  context,
+}) => {
+  await openApp(page)
+  await goTo(page, 'Tabungan')
+  await page.getByRole('button', { name: 'Tabungan baru' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Tabungan baru' })
+  await handlePoint(sheet)
+  await sheet.getByRole('textbox', { name: 'Nama tabungan' }).fill('Liburan')
+  expect(await sheet.evaluate((d) => d.scrollTop)).toBe(0) // the colour picker is far below
+
+  await context.setOffline(true)
+  await sheet.getByRole('button', { name: 'Simpan' }).click()
+  const error = sheet.locator('[data-sheet-footer]').getByRole('alert')
+  await expect(error).toContainText('Tidak bisa terhubung')
+  await expect(error).toBeInViewport({ ratio: 1 })
+  await context.setOffline(false)
+})
+
 test('why an action failed shows next to its button, not somewhere below', async ({ page }) => {
   await openApp(page)
   await page.getByRole('link', { name: 'Pengaturan akun' }).first().click()
@@ -192,6 +212,72 @@ test('why an action failed shows next to its button, not somewhere below', async
   const error = confirm.locator('[data-sheet-footer]').getByRole('alert')
   await expect(error).toContainText('Masih dipakai')
   await expect(error).toBeInViewport({ ratio: 1 })
+})
+
+/**
+ * Focuses `target` without scrolling, then scrolls the sheet so it is `clearance` px clear of the
+ * sticky header ('top') or footer ('bottom'); negative: hidden under it, as a finger scroll can
+ * leave a field being typed in.
+ */
+async function focusAt(sheet: Locator, target: Locator, edge: 'top' | 'bottom', clearance: number) {
+  const element = await target.elementHandle()
+  await sheet.evaluate(
+    (dialog, { element, edge, clearance }) => {
+      const bar = dialog.querySelector(edge === 'top' ? '[data-sheet-grab]' : '[data-sheet-footer]')
+      if (!bar || !element) throw new Error('bar or target missing')
+      ;(element as HTMLElement).focus({ preventScroll: true })
+      const box = element.getBoundingClientRect()
+      const barBox = bar.getBoundingClientRect()
+      const gap = edge === 'top' ? box.top - barBox.bottom : barBox.top - box.bottom
+      dialog.scrollTop += (edge === 'top' ? 1 : -1) * (gap - clearance)
+    },
+    { element, edge, clearance },
+  )
+}
+
+/** How far the middle of `target` (its text line) is clear of the bar; negative: behind it. */
+async function middleClearOf(sheet: Locator, target: Locator, edge: 'top' | 'bottom') {
+  const bar = sheet.locator(edge === 'top' ? '[data-sheet-grab]' : '[data-sheet-footer]')
+  const [box, barBox] = await Promise.all([target.boundingBox(), bar.boundingBox()])
+  if (!box || !barBox) throw new Error('not visible')
+  const middle = box.y + box.height / 2
+  return edge === 'top' ? middle - (barBox.y + barBox.height) : barBox.y - middle
+}
+
+test.describe('on a short screen, as with the keyboard up', () => {
+  test.use({ viewport: { width: 412, height: 480 } })
+
+  test('the field being typed in stays clear of the header and the footer', async ({ page }) => {
+    await openApp(page)
+    await goTo(page, 'Hutang')
+    await page.getByRole('link', { name: /Kakak/ }).click()
+    await page.getByRole('button', { name: 'Ubah catatan', exact: true }).click()
+    const sheet = page.getByRole('dialog', { name: 'Ubah catatan' })
+    await handlePoint(sheet)
+    const footer = sheet.locator('[data-sheet-footer]')
+
+    // Typing follows the caret out from under either bar.
+    for (const [target, edge] of [
+      [sheet.locator('#debt-person'), 'top'],
+      [sheet.locator('#debt-note'), 'bottom'],
+    ] as const) {
+      await focusAt(sheet, target, edge, -30)
+      expect(await middleClearOf(sheet, target, edge), `${edge}: starts hidden`).toBeLessThan(0)
+      await page.keyboard.type('a')
+      expect(await middleClearOf(sheet, target, edge), `${edge}: typed text shows`).toBeGreaterThan(
+        0,
+      )
+    }
+
+    // A changed amount brings up a note in the footer about the wallet; the taller footer must
+    // not cover the amount being typed just above it.
+    const amount = sheet.locator('#debt-amount')
+    await focusAt(sheet, amount, 'bottom', 10)
+    await page.keyboard.type('1')
+    await expect(footer).toContainText('dihitung ulang')
+    const [field, bar] = await Promise.all([amount.boundingBox(), footer.boundingBox()])
+    expect((bar?.y ?? 0) - ((field?.y ?? 0) + (field?.height ?? 0))).toBeGreaterThanOrEqual(-1)
+  })
 })
 
 test('a short sheet keeps its buttons right after the content', async ({ page }) => {

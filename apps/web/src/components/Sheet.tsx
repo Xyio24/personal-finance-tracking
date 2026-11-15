@@ -83,20 +83,25 @@ export function Sheet({ open, onClose, title, children }: Props) {
   }, [isOpen])
 
   // Content scrolls beneath the sticky header and footer: draw a divider on the edge it passes
-  // under, and publish their heights so a field that gets focus (Tab, or the keyboard opening)
-  // stops clear of both (scroll-margin in index.css). Not scroll-padding on the dialog: that
-  // would also count the bars' own buttons as hidden and jump to the top or end on focus.
+  // under, and publish their heights so a field that gets focus or is typed in stops clear of
+  // both (scroll-padding in index.css).
   useLayoutEffect(() => {
     const dialog = ref.current
     const top = header.current
     const content = body.current
     if (!rendered || !dialog || !top || !content) return
+    let footerHeight = footer?.offsetHeight ?? 0
     const update = () => {
       const below = dialog.scrollHeight - dialog.scrollTop - dialog.clientHeight
       top.toggleAttribute('data-scrolled', dialog.scrollTop > 0)
       footer?.toggleAttribute('data-stuck', below > 1)
+      const height = footer?.offsetHeight ?? 0
       dialog.style.setProperty('--sheet-top', `${top.offsetHeight}px`)
-      dialog.style.setProperty('--sheet-bottom', `${footer?.offsetHeight ?? 0}px`)
+      dialog.style.setProperty('--sheet-bottom', `${height}px`)
+      // A notice or error showing up in the footer makes it grow upward over the content: keep
+      // the field being typed in visible above it.
+      if (height > footerHeight) revealFocused(dialog)
+      footerHeight = height
     }
     update()
     dialog.addEventListener('scroll', update, { passive: true })
@@ -248,6 +253,14 @@ function rememberOpener(dialog: HTMLDialogElement) {
   // to disappear, so focus should return to what opened that sheet.
   const leaving = active.closest<HTMLDialogElement>('dialog[data-state="closing"]')
   openers.set(dialog, (leaving && openers.get(leaving)) || active)
+}
+
+/** Scrolls the sheet's focused field into view (not the bars' own buttons, nor a nested sheet's). */
+function revealFocused(dialog: HTMLDialogElement) {
+  const active = document.activeElement
+  if (!(active instanceof HTMLElement) || active.closest('dialog') !== dialog) return
+  if (active.closest('[data-sheet-grab], [data-sheet-footer]')) return
+  active.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 }
 
 /** Longest transition on the element as the CSS defines it right now (reduced motion included). */

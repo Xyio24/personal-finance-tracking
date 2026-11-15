@@ -160,14 +160,20 @@
     padding-bottom: 0.75rem;
   }
 
-  /* A field that gets focus (Tab, or the keyboard opening) stops clear of the sticky header and
-     footer; Sheet.tsx sets their heights. The bars' own buttons are always in view as they are. */
-  .sheet * {
-    scroll-margin-top: var(--sheet-top, 0px);
-    scroll-margin-bottom: var(--sheet-bottom, 0px);
+  /* A field that gets focus (Tab, the keyboard opening) or is typed in stops clear of the sticky
+     header and footer; Sheet.tsx sets their heights. On the scroller, not on each field: the
+     caret that follows typing ignores the field's own scroll-margin. */
+  .sheet {
+    scroll-padding-top: var(--sheet-top, 0px);
+    scroll-padding-bottom: var(--sheet-bottom, 0px);
   }
-  .sheet :is([data-sheet-grab], [data-sheet-footer]) * {
-    scroll-margin: 0;
+  /* The bars' own buttons are always in view: cancel the padding for them, or focusing Tutup or
+     Simpan would jump the form to its top or end. */
+  .sheet [data-sheet-grab] * {
+    scroll-margin-top: calc(-1 * var(--sheet-top, 0px));
+  }
+  .sheet [data-sheet-footer] * {
+    scroll-margin-bottom: calc(-1 * var(--sheet-bottom, 0px));
   }
 
   /* Toasts rise in from the bottom (a plain fade with reduced motion). */
