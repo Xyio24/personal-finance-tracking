@@ -5,10 +5,18 @@ import type {
   Category,
   CategoryInput,
   CategoryUpdate,
+  MonthlyTotal,
   Transaction,
+  TransactionFilters,
   TransactionInput,
 } from '@finance/shared'
-import { type QueryKey, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  type QueryKey,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { api, jsonBody } from './api'
 
 export const queryKeys = {
@@ -17,7 +25,16 @@ export const queryKeys = {
   transactions: ['transactions'],
   month: (month: string) => ['transactions', 'month', month],
   transaction: (id: string) => ['transactions', 'one', id],
+  search: (q: string, filters: TransactionFilters) => ['transactions', 'search', q, filters],
+  reports: ['reports'],
+  monthly: (from: string, to: string) => ['reports', 'monthly', from, to],
 } as const
+
+/** Query string without empty values. */
+const toQuery = (params: Record<string, string | undefined>) =>
+  new URLSearchParams(
+    Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])),
+  ).toString()
 
 export function useAccounts() {
   return useQuery({ queryKey: queryKeys.accounts, queryFn: () => api<Account[]>('/accounts') })
@@ -30,10 +47,33 @@ export function useCategories() {
   })
 }
 
+// Lists and reports keep showing the previous result while the next one loads (switching
+// months, typing a search), so the screen never flashes back to a skeleton.
+
 export function useMonthTransactions(month: string) {
   return useQuery({
     queryKey: queryKeys.month(month),
     queryFn: () => api<Transaction[]>(`/transactions?month=${month}`),
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** Search across all months; idle while `q` is empty. */
+export function useTransactionSearch(q: string, filters: TransactionFilters) {
+  return useQuery({
+    queryKey: queryKeys.search(q, filters),
+    queryFn: () => api<Transaction[]>(`/transactions?${toQuery({ q, ...filters })}`),
+    enabled: q.length > 0,
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** Income and expense per month, `from` to `to` included. */
+export function useMonthlyReport(from: string, to: string) {
+  return useQuery({
+    queryKey: queryKeys.monthly(from, to),
+    queryFn: () => api<MonthlyTotal[]>(`/reports/monthly?${toQuery({ from, to })}`),
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -108,7 +148,7 @@ export const useSaveTransaction = () =>
       id
         ? api<Transaction>(`/transactions/${id}`, jsonBody('PUT', input))
         : api<Transaction>('/transactions', jsonBody('POST', input)),
-    [queryKeys.transactions, queryKeys.accounts],
+    [queryKeys.transactions, queryKeys.accounts, queryKeys.reports],
   )
 
 export function useDeleteTransaction() {
@@ -125,6 +165,7 @@ export function useDeleteTransaction() {
           predicate: ({ queryKey }) => queryKey[1] !== 'one' || queryKey[2] !== id,
         }),
         queryClient.invalidateQueries({ queryKey: queryKeys.accounts }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.reports }),
       ]),
   })
 }

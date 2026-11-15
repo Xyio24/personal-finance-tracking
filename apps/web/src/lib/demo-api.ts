@@ -9,12 +9,19 @@ import {
   computeBalances,
   DEFAULT_CATEGORIES,
   defaultCategorySort,
+  type MonthlyTotal,
+  matchesFilters,
+  monthlyReportQuerySchema,
   monthRange,
+  monthsBetween,
+  SEARCH_LIMIT,
   shiftDate,
+  summarize,
   type Transaction,
   type TransactionInput,
   toDateKey,
   transactionInputSchema,
+  transactionListQuerySchema,
 } from '@finance/shared'
 import type { z } from 'zod'
 import { ApiError } from './errors'
@@ -65,6 +72,9 @@ function route(
   if (resource === 'accounts') return accountsRoute(db, method, id, body)
   if (resource === 'categories') return categoriesRoute(db, method, id, body)
   if (resource === 'transactions') return transactionsRoute(db, method, id, query, body)
+  if (resource === 'reports' && id === 'monthly' && method === 'GET') {
+    return monthlyReport(db, query)
+  }
   throw new ApiError(404, 'not_found')
 }
 
@@ -146,10 +156,24 @@ function transactionsRoute(
   body: unknown,
 ) {
   if (!id && method === 'GET') {
-    const { start, end } = monthRange(query.get('month') ?? toDateKey(new Date()).slice(0, 7))
-    return db.transactions
-      .filter((t) => t.date >= start && t.date < end)
-      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+    const { month, q, ...filters } = parse(transactionListQuerySchema, Object.fromEntries(query))
+    let list = db.transactions.filter((t) => matchesFilters(t, filters))
+    if (month) {
+      const { start, end } = monthRange(month)
+      list = list.filter((t) => t.date >= start && t.date < end)
+    }
+    if (q) {
+      const needle = q.toLowerCase()
+      const categoryName = (id: string | null) =>
+        db.categories.find((c) => c.id === id)?.name.toLowerCase() ?? ''
+      list = list.filter(
+        (t) =>
+          (t.note ?? '').toLowerCase().includes(needle) ||
+          categoryName(t.categoryId).includes(needle),
+      )
+    }
+    list.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+    return month ? list : list.slice(0, SEARCH_LIMIT)
   }
   if (!id && method === 'POST') {
     const input = parse(transactionInputSchema, body)
@@ -171,6 +195,14 @@ function transactionsRoute(
     return undefined
   }
   throw new ApiError(404, 'not_found')
+}
+
+function monthlyReport(db: Store, query: URLSearchParams): MonthlyTotal[] {
+  const { from, to } = parse(monthlyReportQuerySchema, Object.fromEntries(query))
+  return monthsBetween(from, to).map((month) => {
+    const { income, expense } = summarize(db.transactions.filter((t) => t.date.startsWith(month)))
+    return { month, income, expense }
+  })
 }
 
 function toValues(input: TransactionInput) {
@@ -277,6 +309,30 @@ function seed(): Store {
     [1, 200_000, 'BCA', 'GoPay', 'Top up'],
     [12, 500_000, 'BCA', 'Tunai', 'Tarik tunai'],
   ]
+
+  // Five earlier months of typical spending, so the trend chart has a shape to show.
+  const monthly: [category: string, amount: number, from: string, note: string | null][] = [
+    ['Makan & Minum', 1_150_000, 'BCA', 'Makan sebulan'],
+    ['Transportasi', 420_000, 'GoPay', 'Transport sebulan'],
+    ['Tagihan', 680_000, 'BCA', 'Listrik & air'],
+    ['Belanja', 900_000, 'BCA', 'Belanja bulanan'],
+    ['Hiburan', 250_000, 'GoPay', null],
+    ['Pulsa & Internet', 100_000, 'BCA', 'Paket data'],
+  ]
+  for (const [i, swing] of [1.08, 0.92, 1.2, 0.97, 0.88].entries()) {
+    const daysAgo = 45 + i * 30
+    incomes.push([daysAgo + 5, 8_500_000, 'BCA', 'Gaji', 'Gaji bulanan'])
+    transfers.push([daysAgo + 4, 400_000, 'BCA', 'GoPay', 'Top up'])
+    monthly.forEach(([target, amount, from, note], j) => {
+      expenses.push([
+        daysAgo + j * 3,
+        Math.round((amount * swing) / 1000) * 1000,
+        from,
+        target,
+        note,
+      ])
+    })
+  }
 
   const base = (type: Transaction['type'], [daysAgo, amount, from, , note]: Example) => ({
     id: uuid(),
