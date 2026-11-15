@@ -1,10 +1,13 @@
 import {
   type Account,
   type Category,
+  goalProgress,
   type MonthlyTotal,
   monthsBetween,
+  type SavingsGoal,
   shiftMonth,
   type Transaction,
+  toDateKey,
   toMonthKey,
 } from '@finance/shared'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -114,5 +117,46 @@ describe('demo API search and reports', () => {
     const report = await demoRequest<MonthlyTotal[]>(`/reports/monthly?from=${from}&to=${to}`)
     expect(report.map((r) => r.month)).toEqual(monthsBetween(from, to))
     expect(report.filter((r) => r.expense > 0).length).toBeGreaterThanOrEqual(5)
+  })
+})
+
+describe('demo API savings', () => {
+  const goals = () => demoRequest<SavingsGoal[]>('/savings')
+
+  it('starts with goals in every state', async () => {
+    const today = toDateKey(new Date())
+    const status = Object.fromEntries(
+      (await goals()).map((g) => [g.name, goalProgress(g, today).status]),
+    )
+    expect(status).toEqual({
+      'Dana Darurat': 'open',
+      'Liburan Bali': 'on_track',
+      'Laptop baru': 'behind',
+      'HP baru': 'achieved',
+    })
+  })
+
+  it('moves money like the server and refuses an oversized "culik"', async () => {
+    const { cash } = await lookups()
+    const trip = (await goals()).find((g) => g.name === 'Liburan Bali')
+    if (!trip) throw new Error('missing goal')
+    const move = (type: string, amount: number) =>
+      post('/transactions', {
+        type,
+        amount,
+        accountId: cash.id,
+        goalId: trip.id,
+        date: '2026-11-15',
+      })
+
+    await move('saving_deposit', 100_000)
+    const after = (await goals()).find((g) => g.id === trip.id)
+    expect(after?.balance).toBe(trip.balance + 100_000)
+    const wallet = (await demoRequest<Account[]>('/accounts')).find((a) => a.id === cash.id)
+    expect(wallet?.balance).toBe(cash.balance - 100_000)
+
+    await expect(move('saving_withdrawal', trip.balance + 100_001)).rejects.toSatisfy(
+      (e) => e instanceof ApiError && e.message === 'insufficient_savings',
+    )
   })
 })

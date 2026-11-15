@@ -17,6 +17,9 @@ const messages: Record<string, string> = {
   archived_account: 'Dompet ini sudah diarsipkan. Pilih dompet lain.',
   invalid_category: 'Kategori tidak cocok dengan jenis transaksi.',
   archived_category: 'Kategori ini sudah diarsipkan. Pilih kategori lain.',
+  invalid_goal: 'Tabungan ini tidak ditemukan.',
+  archived_goal: 'Tabungan ini sudah diarsipkan. Aktifkan lagi untuk mengisinya.',
+  insufficient_savings: 'Isi tabungan tidak cukup untuk diculik sebanyak itu.',
   unauthorized: 'Sesi login berakhir. Silakan masuk lagi.',
   too_many_requests: 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.',
 }

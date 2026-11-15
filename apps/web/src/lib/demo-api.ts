@@ -7,13 +7,18 @@ import {
   categoryInputSchema,
   categoryUpdateSchema,
   computeBalances,
+  computeGoalBalances,
   DEFAULT_CATEGORIES,
   defaultCategorySort,
+  goalDelta,
+  goalInputSchema,
+  goalUpdateSchema,
   type MonthlyTotal,
   matchesFilters,
   monthlyReportQuerySchema,
   monthRange,
   monthsBetween,
+  type SavingsGoal,
   SEARCH_LIMIT,
   shiftDate,
   summarize,
@@ -34,9 +39,11 @@ import { ApiError } from './errors'
 
 type StoredAccount = Omit<Account, 'balance'>
 type StoredCategory = Category & { sortOrder: number }
+type StoredGoal = Omit<SavingsGoal, 'balance' | 'savedLast90Days'>
 type Store = {
   accounts: StoredAccount[]
   categories: StoredCategory[]
+  goals: StoredGoal[]
   transactions: Transaction[]
 }
 
@@ -75,6 +82,7 @@ function route(
   if (resource === 'reports' && id === 'monthly' && method === 'GET') {
     return monthlyReport(db, query)
   }
+  if (resource === 'savings') return savingsRoute(db, method, id, body)
   throw new ApiError(404, 'not_found')
 }
 
@@ -164,16 +172,17 @@ function transactionsRoute(
     }
     if (q) {
       const needle = q.toLowerCase()
-      const categoryName = (id: string | null) =>
-        db.categories.find((c) => c.id === id)?.name.toLowerCase() ?? ''
+      const nameOf = (items: { id: string; name: string }[], id: string | null) =>
+        items.find((item) => item.id === id)?.name.toLowerCase() ?? ''
       list = list.filter(
         (t) =>
           (t.note ?? '').toLowerCase().includes(needle) ||
-          categoryName(t.categoryId).includes(needle),
+          nameOf(db.categories, t.categoryId).includes(needle) ||
+          nameOf(db.goals, t.goalId).includes(needle),
       )
     }
     list.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
-    return month ? list : list.slice(0, SEARCH_LIMIT)
+    return month || (filters.goalId && !q) ? list : list.slice(0, SEARCH_LIMIT)
   }
   if (!id && method === 'POST') {
     const input = parse(transactionInputSchema, body)
@@ -234,10 +243,51 @@ function checkReferences(db: Store, input: TransactionInput, existing?: Transact
       throw new ApiError(400, 'archived_category')
     }
   }
-  // Savings goals arrive in the demo together with the savings screens.
   if (input.type === 'saving_deposit' || input.type === 'saving_withdrawal') {
-    throw new ApiError(400, 'invalid_goal')
+    const goal = db.goals.find((g) => g.id === input.goalId)
+    if (!goal) throw new ApiError(400, 'invalid_goal')
+    if (goal.archived && goal.id !== existing?.goalId) throw new ApiError(400, 'archived_goal')
+    if (input.type === 'saving_withdrawal') {
+      const others = db.transactions.filter((t) => t.id !== existing?.id)
+      const available = computeGoalBalances([goal], others).get(goal.id) ?? 0
+      if (input.amount > available) throw new ApiError(400, 'insufficient_savings')
+    }
   }
+}
+
+// Savings goals
+
+function goalsWithBalances(db: Store): SavingsGoal[] {
+  const balances = computeGoalBalances(db.goals, db.transactions)
+  const since = shiftDate(toDateKey(new Date()), -90)
+  return db.goals.map((goal) => ({
+    ...goal,
+    balance: balances.get(goal.id) ?? goal.initialAmount,
+    savedLast90Days: db.transactions
+      .filter((t) => t.goalId === goal.id && t.date >= since)
+      .reduce((sum, t) => sum + goalDelta(t), 0),
+  }))
+}
+
+function savingsRoute(db: Store, method: string, id: string | undefined, body: unknown) {
+  if (!id && method === 'GET') return goalsWithBalances(db)
+  if (!id && method === 'POST') {
+    const goal = { ...parse(goalInputSchema, body), id: uuid(), archived: false, createdAt: now() }
+    db.goals.push(goal)
+    return { ...goal, balance: goal.initialAmount, savedLast90Days: 0 }
+  }
+  const goal = find(db.goals, id)
+  if (method === 'PATCH') {
+    const { archived, ...fields } = parse(goalUpdateSchema, body)
+    Object.assign(goal, fields, archived === undefined ? {} : { archived })
+    return goalsWithBalances(db).find((g) => g.id === goal.id)
+  }
+  if (method === 'DELETE') {
+    if (db.transactions.some((t) => t.goalId === id)) throw new ApiError(409, 'in_use')
+    db.goals = db.goals.filter((g) => g.id !== id)
+    return undefined
+  }
+  throw new ApiError(404, 'not_found')
 }
 
 // Helpers
@@ -369,5 +419,59 @@ function seed(): Store {
     })),
   ]
 
-  return { accounts, categories, transactions }
+  // Savings goals showing every state: an open-ended pot, one on track (with a "culik"), one
+  // behind and one already reached.
+  const daysAgoIso = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString()
+  const goals: StoredGoal[] = [
+    ['Dana Darurat', 'piggy-bank', 'emerald', 30_000_000, null, 12_000_000, 200],
+    ['Liburan Bali', 'plane', 'sky', 8_000_000, 210, 0, 160],
+    ['Laptop baru', 'laptop', 'violet', 15_000_000, 90, 2_000_000, 120],
+    ['HP baru', 'smartphone', 'pink', 4_000_000, 30, 1_000_000, 100],
+  ].map(([name, icon, color, targetAmount, deadlineIn, initialAmount, ageDays]) => ({
+    id: uuid(),
+    name: name as string,
+    icon: icon as StoredGoal['icon'],
+    color: color as StoredGoal['color'],
+    targetAmount: targetAmount as number,
+    deadline: deadlineIn === null ? null : shiftDate(today, deadlineIn as number),
+    initialAmount: initialAmount as number,
+    archived: false,
+    createdAt: daysAgoIso(ageDays as number),
+  }))
+  const goalId = (name: string) => goals.find((g) => g.name === name)?.id ?? null
+
+  type Move = [
+    daysAgo: number,
+    deposit: boolean,
+    amount: number,
+    wallet: string,
+    goal: string,
+    note: string | null,
+  ]
+  const moves: Move[] = [
+    ...[5, 35, 65, 95, 125].map((d): Move => [d, true, 1_000_000, 'BCA', 'Dana Darurat', null]),
+    [3, false, 150_000, 'Tunai', 'Dana Darurat', 'Servis motor'],
+    ...[8, 38, 68, 98, 128].map((d): Move => [d, true, 900_000, 'BCA', 'Liburan Bali', null]),
+    [20, false, 300_000, 'GoPay', 'Liburan Bali', 'Tiket konser'],
+    [40, true, 500_000, 'BCA', 'Laptop baru', null],
+    [100, true, 1_000_000, 'BCA', 'Laptop baru', null],
+    [15, true, 1_500_000, 'BCA', 'HP baru', null],
+    [45, true, 1_500_000, 'BCA', 'HP baru', 'Dari bonus'],
+  ]
+  for (const [daysAgo, deposit, amount, wallet, goal, note] of moves) {
+    transactions.push({
+      id: uuid(),
+      type: deposit ? 'saving_deposit' : 'saving_withdrawal',
+      amount,
+      accountId: account(wallet),
+      toAccountId: null,
+      categoryId: null,
+      goalId: goalId(goal),
+      date: shiftDate(today, -daysAgo),
+      note,
+      createdAt: daysAgoIso(daysAgo),
+    })
+  }
+
+  return { accounts, categories, goals, transactions }
 }

@@ -5,7 +5,10 @@ import type {
   Category,
   CategoryInput,
   CategoryUpdate,
+  GoalInput,
+  GoalUpdate,
   MonthlyTotal,
+  SavingsGoal,
   Transaction,
   TransactionFilters,
   TransactionInput,
@@ -28,6 +31,8 @@ export const queryKeys = {
   search: (q: string, filters: TransactionFilters) => ['transactions', 'search', q, filters],
   reports: ['reports'],
   monthly: (from: string, to: string) => ['reports', 'monthly', from, to],
+  savings: ['savings'],
+  goalHistory: (goalId: string) => ['transactions', 'goal', goalId],
 } as const
 
 /** Query string without empty values. */
@@ -148,7 +153,7 @@ export const useSaveTransaction = () =>
       id
         ? api<Transaction>(`/transactions/${id}`, jsonBody('PUT', input))
         : api<Transaction>('/transactions', jsonBody('POST', input)),
-    [queryKeys.transactions, queryKeys.accounts, queryKeys.reports],
+    [queryKeys.transactions, queryKeys.accounts, queryKeys.reports, queryKeys.savings],
   )
 
 export function useDeleteTransaction() {
@@ -166,6 +171,41 @@ export function useDeleteTransaction() {
         }),
         queryClient.invalidateQueries({ queryKey: queryKeys.accounts }),
         queryClient.invalidateQueries({ queryKey: queryKeys.reports }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.savings }),
       ]),
   })
 }
+
+// Savings goals. Deposits and withdrawals are transactions (useSaveTransaction), which also
+// refresh the goals.
+
+export function useSavingsGoals() {
+  return useQuery({ queryKey: queryKeys.savings, queryFn: () => api<SavingsGoal[]>('/savings') })
+}
+
+/** Every deposit and withdrawal of one goal, newest first. */
+export function useGoalHistory(goalId: string) {
+  return useQuery({
+    queryKey: queryKeys.goalHistory(goalId),
+    queryFn: () => api<Transaction[]>(`/transactions?${toQuery({ goalId })}`),
+  })
+}
+
+export const useCreateGoal = () =>
+  useRefreshingMutation(
+    (input: GoalInput) => api<SavingsGoal>('/savings', jsonBody('POST', input)),
+    [queryKeys.savings],
+  )
+
+export const useUpdateGoal = () =>
+  useRefreshingMutation(
+    ({ id, ...patch }: GoalUpdate & { id: string }) =>
+      api<SavingsGoal>(`/savings/${id}`, jsonBody('PATCH', patch)),
+    [queryKeys.savings],
+  )
+
+export const useDeleteGoal = () =>
+  useRefreshingMutation(
+    (id: string) => api<void>(`/savings/${id}`, { method: 'DELETE' }),
+    [queryKeys.savings],
+  )
