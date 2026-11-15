@@ -5,6 +5,26 @@ import { accounts, categories, savingsGoals, type TransactionRow } from '../db/s
 import type { ApiErrorCode } from '../lib/validate'
 import { goalBalance } from './savings'
 
+/**
+ * Removing or shrinking a deposit must not push its goal below zero: part of that money may
+ * already have been taken out again with a "culik". `replacement` is the edited version, if
+ * the transaction is being changed rather than deleted.
+ */
+export async function keepsGoalPositive(
+  existing: TransactionRow,
+  replacement?: TransactionInput,
+): Promise<boolean> {
+  if (existing.type !== 'saving_deposit' || !existing.goalId) return true
+  let balance = await goalBalance(existing.goalId, existing.id)
+  if (replacement?.type === 'saving_deposit' && replacement.goalId === existing.goalId) {
+    balance += replacement.amount
+  }
+  if (replacement?.type === 'saving_withdrawal' && replacement.goalId === existing.goalId) {
+    balance -= replacement.amount
+  }
+  return balance >= 0
+}
+
 /** Column values for a transaction row; fields that don't apply to the type are cleared. */
 export function toTransactionValues(input: TransactionInput) {
   return {

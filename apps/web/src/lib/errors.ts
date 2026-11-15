@@ -20,6 +20,8 @@ const messages: Record<string, string> = {
   invalid_goal: 'Tabungan ini tidak ditemukan.',
   archived_goal: 'Tabungan ini sudah diarsipkan. Aktifkan lagi untuk mengisinya.',
   insufficient_savings: 'Isi tabungan tidak cukup untuk diculik sebanyak itu.',
+  savings_already_used:
+    'Sebagian uang dari catatan ini sudah diculik. Hapus dulu catatan culiknya, baru yang ini.',
   unauthorized: 'Sesi login berakhir. Silakan masuk lagi.',
   too_many_requests: 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.',
 }

@@ -196,14 +196,32 @@ function transactionsRoute(
   if (method === 'PUT') {
     const input = parse(transactionInputSchema, body)
     checkReferences(db, input, existing)
+    keepGoalPositive(db, existing, input)
     Object.assign(existing, toValues(input))
     return existing
   }
   if (method === 'DELETE') {
+    keepGoalPositive(db, existing)
     db.transactions = db.transactions.filter((t) => t.id !== id)
     return undefined
   }
   throw new ApiError(404, 'not_found')
+}
+
+/** Same rule as the server: removing or shrinking a deposit may not push its goal below 0. */
+function keepGoalPositive(db: Store, existing: Transaction, replacement?: TransactionInput) {
+  if (existing.type !== 'saving_deposit' || !existing.goalId) return
+  const goal = db.goals.find((g) => g.id === existing.goalId)
+  if (!goal) return
+  const others = db.transactions.filter((t) => t.id !== existing.id)
+  let balance = computeGoalBalances([goal], others).get(goal.id) ?? 0
+  if (
+    (replacement?.type === 'saving_deposit' || replacement?.type === 'saving_withdrawal') &&
+    replacement.goalId === goal.id
+  ) {
+    balance += replacement.type === 'saving_deposit' ? replacement.amount : -replacement.amount
+  }
+  if (balance < 0) throw new ApiError(400, 'savings_already_used')
 }
 
 function monthlyReport(db: Store, query: URLSearchParams): MonthlyTotal[] {

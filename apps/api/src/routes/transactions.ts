@@ -11,7 +11,7 @@ import { categories, savingsGoals, transactions } from '../db/schema'
 import { toTransaction } from '../lib/dto'
 import { apiError, idParam, validate } from '../lib/validate'
 import { type AuthEnv, requireAuth } from '../middleware/auth'
-import { checkReferences, toTransactionValues } from '../services/transactions'
+import { checkReferences, keepsGoalPositive, toTransactionValues } from '../services/transactions'
 
 export const transactionRoutes = new Hono<AuthEnv>()
 
@@ -95,6 +95,9 @@ transactionRoutes.put('/:id', idParam, validate('json', transactionInputSchema),
 
   const problem = await checkReferences(userId, input, existing)
   if (problem) return apiError(c, problem, 400)
+  if (!(await keepsGoalPositive(existing, input))) {
+    return apiError(c, 'savings_already_used', 400)
+  }
 
   const [row] = await db
     .update(transactions)
@@ -106,13 +109,15 @@ transactionRoutes.put('/:id', idParam, validate('json', transactionInputSchema),
 })
 
 transactionRoutes.delete('/:id', idParam, async (c) => {
-  const [row] = await db
+  const userId = c.get('user').id
+  const existing = await findOwn(userId, c.req.valid('param').id)
+  if (!existing) return apiError(c, 'not_found', 404)
+  if (!(await keepsGoalPositive(existing))) return apiError(c, 'savings_already_used', 400)
+
+  await db
     .delete(transactions)
-    .where(
-      and(eq(transactions.id, c.req.valid('param').id), eq(transactions.userId, c.get('user').id)),
-    )
-    .returning({ id: transactions.id })
-  return row ? c.body(null, 204) : apiError(c, 'not_found', 404)
+    .where(and(eq(transactions.id, existing.id), eq(transactions.userId, userId)))
+  return c.body(null, 204)
 })
 
 async function findOwn(userId: string, id: string) {

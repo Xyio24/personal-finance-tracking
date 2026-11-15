@@ -31,6 +31,7 @@ export type ApiErrorCode =
   | 'invalid_goal'
   | 'archived_goal'
   | 'insufficient_savings'
+  | 'savings_already_used'
 
 export function apiError(c: Context, error: ApiErrorCode, status: 400 | 404 | 409) {
   return c.json({ error }, status)

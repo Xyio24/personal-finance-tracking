@@ -80,6 +80,33 @@ describe('savings goals', () => {
     expect((await goalsOf(client))[0]?.balance).toBe(0)
   })
 
+  it('never lets removing or shrinking a deposit push a goal below zero', async () => {
+    const { client, bank, goal } = await setup()
+    await client.patch(`/savings/${goal.id}`, { initialAmount: 0 })
+    const { body: deposit } = await move(client, 'saving_deposit', bank.id, goal.id, 1_000_000)
+    const { body: kidnap } = await move(client, 'saving_withdrawal', bank.id, goal.id, 800_000)
+
+    expect(await client.del(`/transactions/${deposit.id}`)).toEqual({
+      status: 400,
+      body: { error: 'savings_already_used' },
+    })
+    const shrink = (amount: number) =>
+      client.put(`/transactions/${deposit.id}`, {
+        type: 'saving_deposit',
+        amount,
+        accountId: bank.id,
+        goalId: goal.id,
+        date: '2026-11-10',
+      })
+    expect((await shrink(700_000)).body).toEqual({ error: 'savings_already_used' })
+    expect((await shrink(800_000)).status).toBe(200)
+
+    // Undo the "culik" first, then the deposit can go.
+    expect((await client.del(`/transactions/${kidnap.id}`)).status).toBe(204)
+    expect((await client.del(`/transactions/${deposit.id}`)).status).toBe(204)
+    expect((await goalsOf(client))[0]?.balance).toBe(0)
+  })
+
   it('refuses archived goals and goals of other users', async () => {
     const { client, bank, goal } = await setup()
     const other = await setup('second@example.com')
