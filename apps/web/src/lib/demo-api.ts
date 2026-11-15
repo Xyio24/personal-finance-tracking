@@ -322,7 +322,7 @@ function seed(): Store {
   for (const [i, swing] of [1.08, 0.92, 1.2, 0.97, 0.88].entries()) {
     const daysAgo = 45 + i * 30
     incomes.push([daysAgo + 5, 8_500_000, 'BCA', 'Gaji', 'Gaji bulanan'])
-    transfers.push([daysAgo + 4, 400_000, 'BCA', 'GoPay', 'Top up'])
+    transfers.push([daysAgo + 4, 750_000, 'BCA', 'GoPay', 'Top up'])
     monthly.forEach(([target, amount, from, note], j) => {
       expenses.push([
         daysAgo + j * 3,
