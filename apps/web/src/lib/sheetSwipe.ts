@@ -104,7 +104,7 @@ export function attachSheetSwipe(
   function onEnd(e: TouchEvent) {
     const done = g
     g = null
-    if (!done || done.mode !== 'drag') return
+    if (done?.mode !== 'drag') return
     // A real drag that began on a button must not press it.
     if (Math.abs(done.offset) > TAP_SLOP && e.cancelable) e.preventDefault()
     const v = velocity(done.samples)

@@ -35,7 +35,7 @@ import {
   useSavingsGoals,
   useUpdateGoal,
 } from '../lib/queries'
-import { toast, undoable } from '../lib/toast'
+import { toast } from '../lib/toast'
 
 export function GoalDetailPage() {
   const { id = '' } = useParams()
