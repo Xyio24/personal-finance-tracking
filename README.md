@@ -62,8 +62,8 @@ npm run dev:demo            # buka http://localhost:5173
 
 Mode demo hanya ada di frontend: login dilewati dengan user palsu, dan sebuah API tiruan di
 memori (dengan aturan yang sama seperti server) mengisi contoh dompet dan transaksi. Data tidak
-tersimpan. API asli tetap mewajibkan session, dan build production tidak berisi kode demo sama
-sekali.
+tersimpan, dan seperti aplikasi aslinya, menyimpan perubahan saat offline akan gagal. API asli
+tetap mewajibkan session, dan build production tidak berisi kode demo sama sekali.
 
 ### Fitur yang sudah ada
 
@@ -91,9 +91,10 @@ sekali.
   di cache browser.
 - **Ekspor CSV** semua transaksi dari Pengaturan, siap dibuka di Excel atau Google Sheets
 - **Terasa seperti aplikasi HP**: popup meluncur dari bawah dengan latar blur dan bisa ditutup
-  dengan digeser ke bawah, halaman bergeser masuk (dari kanan saat masuk lebih dalam, dari kiri saat
-  kembali), posisi scroll daftar diingat saat kembali, toast konfirmasi dengan **Urungkan**, dan
-  isian yang tidak sengaja tertutup bisa dipulihkan. Semua animasi mengikuti setelan "kurangi
+  dengan digeser ke bawah, tombol Simpan tetap menempel di bawah popup yang panjang (pesan error
+  muncul tepat di atasnya), halaman bergeser masuk (dari kanan saat masuk lebih dalam, dari kiri
+  saat kembali), posisi scroll daftar diingat saat kembali, toast konfirmasi dengan **Urungkan**,
+  dan isian yang tidak sengaja tertutup bisa dipulihkan. Semua animasi mengikuti setelan "kurangi
   gerakan" di HP.
 - **Salah input bisa diperbaiki**: setiap transaksi, isi/culik, pembayaran hutang, dan hutang/
   piutang itu sendiri (termasuk tanggal, dompet, dan jenisnya) bisa diubah atau dihapus.
