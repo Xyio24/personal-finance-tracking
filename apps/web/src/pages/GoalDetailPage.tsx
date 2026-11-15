@@ -27,7 +27,7 @@ import {
 } from '../lib/format'
 import { useGoBack } from '../lib/navigation'
 import {
-  undoDelete,
+  deletedToast,
   useAccounts,
   useDeleteGoal,
   useDeleteTransaction,
@@ -375,7 +375,7 @@ export function GoalDetailPage() {
           removing &&
           remove.mutate(removing.id, {
             onSuccess: () => {
-              undoable('Catatan dihapus', () => undoDelete(removing))
+              deletedToast('Catatan dihapus', removing)
               setRemoving(null)
             },
           })

@@ -27,6 +27,7 @@ import {
 } from '@tanstack/react-query'
 import { api, jsonBody } from './api'
 import { queryClient } from './queryClient'
+import { toast, undoable } from './toast'
 
 export const queryKeys = {
   accounts: ['accounts'],
@@ -247,6 +248,36 @@ export function transactionInputOf(t: Transaction): TransactionInput | null {
 export async function undoCreate(id: string) {
   await api<void>(`/transactions/${id}`, { method: 'DELETE' })
   refreshMoney()
+}
+
+/**
+ * Whether a deleted entry can be recorded again: not when its wallet, category or goal has been
+ * archived or its debt written off since (the server would refuse).
+ */
+export function canRecreate(t: Transaction) {
+  if (!transactionInputOf(t)) return false
+  const accounts = queryClient.getQueryData<Account[]>(queryKeys.accounts)
+  const categories = queryClient.getQueryData<Category[]>(queryKeys.categories)
+  const goals = queryClient.getQueryData<SavingsGoal[]>(queryKeys.savings)
+  const debts = queryClient.getQueryData<Debt[]>(queryKeys.debts)
+  const usable = <T extends { id: string }>(
+    list: T[] | undefined,
+    id: string | null,
+    ok: (item: T) => boolean,
+  ) => !id || !list || list.some((item) => item.id === id && ok(item))
+  return (
+    usable(accounts, t.accountId, (a) => !a.archived) &&
+    usable(accounts, t.toAccountId, (a) => !a.archived) &&
+    usable(categories, t.categoryId, (c) => !c.archived) &&
+    usable(goals, t.goalId, (g) => !g.archived) &&
+    usable(debts, t.debtId, (d) => !d.writtenOff)
+  )
+}
+
+/** "… dihapus", with "Urungkan" when the entry can be recorded again. */
+export function deletedToast(message: string, t: Transaction) {
+  if (canRecreate(t)) undoable(message, () => undoDelete(t))
+  else toast(message)
 }
 
 /** Undo for "deleted": record it again (it gets a new id). */

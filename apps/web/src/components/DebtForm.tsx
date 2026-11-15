@@ -5,6 +5,7 @@ import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
 import { readLastAccount } from '../lib/lastAccount'
+import { useMounted } from '../lib/navigation'
 import { useCreateDebt, useUpdateDebt } from '../lib/queries'
 import { AmountInput } from './AmountInput'
 import { AccountPicker, DateField } from './Pickers'
@@ -59,6 +60,7 @@ export function DebtForm({
   const [note, setNote] = useDraftField(draftKey, 'note', () => debt?.note ?? '')
 
   const create = useCreateDebt()
+  const mounted = useMounted()
   const update = useUpdateDebt()
   const saving = create.isPending || update.isPending
   const saveError = create.error ?? update.error
@@ -78,12 +80,17 @@ export function DebtForm({
       note: note.trim() || null,
       accountId: accountId || null,
     }
-    const saved = (result: Debt) => {
-      clearDraft(draftKey)
-      onDone(result)
-    }
-    if (debt) update.mutate({ id: debt.id, ...fields }, { onSuccess: saved })
-    else create.mutate(fields, { onSuccess: saved })
+    // mutateAsync: the sheet may be closed while saving; the draft must still be cleared.
+    const request = debt
+      ? update.mutateAsync({ id: debt.id, ...fields })
+      : create.mutateAsync(fields)
+    request.then(
+      (result: Debt) => {
+        clearDraft(draftKey)
+        if (mounted.current) onDone(result)
+      },
+      () => {}, // shown through the form's error
+    )
   }
 
   const payable = direction === 'payable'

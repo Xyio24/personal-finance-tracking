@@ -20,16 +20,39 @@ const emit = () => {
   for (const listener of listeners) listener()
 }
 
+let waiting = 0
+
 export function toast(
   message: string,
   { action, tone = 'success' }: { action?: Toast['action']; tone?: Toast['tone'] } = {},
 ) {
+  if (tone === 'success') haptic() // right away, while the tap still counts as recent
+  const ticket = ++waiting
+  const startedAt = Date.now()
+  // A sheet that is closing stays modal for its exit animation, and a modal dialog hides and
+  // silences everything behind it: wait for it to go (at most 3 s).
+  const show = () => {
+    if (ticket !== waiting) return // a newer toast replaced this one meanwhile
+    if (document.querySelector('dialog:modal') && Date.now() - startedAt < 3000) {
+      window.setTimeout(show, 50)
+      return
+    }
+    current = { id: nextId++, message, tone, action }
+    emit()
+    resumeToast()
+  }
+  show()
+}
+
+/** Long enough to read and reach "Urungkan", short enough not to linger. */
+export function resumeToast() {
   window.clearTimeout(timer)
-  current = { id: nextId++, message, tone, action }
-  emit()
-  if (tone === 'success') haptic()
-  // Long enough to read and reach "Urungkan", short enough not to linger.
-  timer = window.setTimeout(dismissToast, action ? 6000 : 3500)
+  if (current) timer = window.setTimeout(dismissToast, current.action ? 6000 : 3500)
+}
+
+/** Keeps the toast up while a finger or keyboard focus is on it. */
+export function pauseToast() {
+  window.clearTimeout(timer)
 }
 
 /** A toast with "Urungkan"; if undoing fails (e.g. offline), says why. */

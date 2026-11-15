@@ -1,4 +1,5 @@
 import { monthKeyPattern, toMonthKey } from '@finance/shared'
+import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { isDemo } from './demo'
 import { isIos } from './pwa'
@@ -102,4 +103,16 @@ export function useChoiceParam<T extends string>(
     )
 
   return [value, setValue] as const
+}
+
+/** Whether the component is still on screen, for work that finishes after it may have closed. */
+export function useMounted() {
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+  return mounted
 }

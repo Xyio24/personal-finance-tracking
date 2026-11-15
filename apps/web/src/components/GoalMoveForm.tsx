@@ -11,6 +11,7 @@ import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
 import { readLastAccount, rememberAccount } from '../lib/lastAccount'
+import { useMounted } from '../lib/navigation'
 import { undoCreate, useSaveTransaction } from '../lib/queries'
 import { toast, undoable } from '../lib/toast'
 import { AmountInput } from './AmountInput'
@@ -52,6 +53,7 @@ export function GoalMoveForm({
   const [date, setDate] = useDraftField(draftKey, 'date', () => move?.date ?? todayKey())
   const [note, setNote] = useDraftField(draftKey, 'note', () => move?.note ?? '')
   const save = useSaveTransaction()
+  const mounted = useMounted()
 
   // What the goal holds without the entry being corrected.
   const balanceWithout = move
@@ -67,13 +69,14 @@ export function GoalMoveForm({
   function submit(event: FormEvent) {
     event.preventDefault()
     if (!valid || save.isPending) return
-    save.mutate(
-      {
+    // mutateAsync: the sheet may be closed while saving; the draft must still be cleared.
+    save
+      .mutateAsync({
         id: move?.id,
         input: { type, amount, accountId, goalId: goal.id, date, note: note.trim() || null },
-      },
-      {
-        onSuccess: (saved) => {
+      })
+      .then(
+        (saved) => {
           rememberAccount(accountId)
           clearDraft(draftKey)
           if (move) toast('Perubahan disimpan')
@@ -85,10 +88,10 @@ export function GoalMoveForm({
               () => undoCreate(saved.id),
             )
           }
-          onDone()
+          if (mounted.current) onDone()
         },
-      },
-    )
+        () => {}, // shown through save.error
+      )
   }
 
   return (

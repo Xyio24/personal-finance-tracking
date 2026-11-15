@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { ApiError, api } from './api'
 import { demoSession, demoUser, isDemo } from './demo'
+import { toast } from './toast'
 
 export const meKey = ['me'] as const
 
@@ -41,15 +42,21 @@ export function useCurrentUser(): User {
 export function useLogout() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const signedOut = () => {
+    queryClient.clear()
+    navigate('/login', { replace: true })
+  }
 
   return useMutation({
     mutationFn: async () => {
       if (isDemo) return demoSession.signOut()
       await api<void>('/auth/logout', { method: 'POST' })
     },
-    onSettled: () => {
-      queryClient.clear()
-      navigate('/login', { replace: true })
+    onSuccess: () => signedOut(),
+    onError: (error) => {
+      // 401: the session was already over.
+      if (error instanceof ApiError && error.status === 401) signedOut()
+      else toast('Gagal keluar. Periksa koneksi lalu coba lagi.', { tone: 'info' })
     },
   })
 }

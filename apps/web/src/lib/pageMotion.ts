@@ -59,6 +59,7 @@ export function playPageMotion(motion: PageMotion) {
   for (const running of frame.getAnimations()) running.cancel() // rapid taps restart, not stack
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   if (reduce || motion === 'fade') {
+    clip.style.removeProperty('overflow-x') // a fade never pokes past the edge
     frame.animate([{ opacity: 0 }, { opacity: 1 }], {
       duration: reduce ? REDUCED_MS : FADE_MS,
       easing: 'ease-out',

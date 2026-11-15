@@ -5,6 +5,7 @@ import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
 import { readLastAccount, rememberAccount } from '../lib/lastAccount'
+import { useMounted } from '../lib/navigation'
 import { undoCreate, useSaveTransaction } from '../lib/queries'
 import { toast, undoable } from '../lib/toast'
 import { AmountInput } from './AmountInput'
@@ -44,6 +45,7 @@ export function DebtPaymentForm({
   const [date, setDate] = useDraftField(draftKey, 'date', () => payment?.date ?? todayKey())
   const [note, setNote] = useDraftField(draftKey, 'note', () => payment?.note ?? '')
   const save = useSaveTransaction()
+  const mounted = useMounted()
 
   // Same rule as the server: the amount minus every other payment (a write-off doesn't count).
   const limit = payment ? debt.amount - debt.paid + payment.amount : debt.remaining
@@ -53,8 +55,9 @@ export function DebtPaymentForm({
   function submit(event: FormEvent) {
     event.preventDefault()
     if (!valid || save.isPending) return
-    save.mutate(
-      {
+    // mutateAsync: the sheet may be closed while saving; the draft must still be cleared.
+    save
+      .mutateAsync({
         id: payment?.id,
         input: {
           type: payable ? 'debt_repay' : 'debt_collect',
@@ -64,19 +67,19 @@ export function DebtPaymentForm({
           date,
           note: note.trim() || null,
         },
-      },
-      {
-        onSuccess: (saved) => {
+      })
+      .then(
+        (saved) => {
           rememberAccount(accountId)
           clearDraft(draftKey)
           if (payment) toast('Pembayaran diperbarui')
           else {
             undoable(`Pembayaran ${formatRupiah(amount)} dicatat`, () => undoCreate(saved.id))
           }
-          onDone()
+          if (mounted.current) onDone()
         },
-      },
-    )
+        () => {}, // shown through save.error
+      )
   }
 
   return (

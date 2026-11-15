@@ -8,6 +8,7 @@ import { Archive, ArchiveRestore, LoaderCircle, Trash2, X } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
+import { useMounted } from '../lib/navigation'
 import { setArchived, useCreateGoal, useUpdateGoal } from '../lib/queries'
 import { undoable } from '../lib/toast'
 import { AmountInput } from './AmountInput'
@@ -53,6 +54,7 @@ export function GoalForm({
   const [initial, setInitial] = useDraftField(draftKey, 'initial', () => goal?.initialAmount ?? 0)
 
   const create = useCreateGoal()
+  const mounted = useMounted()
   const update = useUpdateGoal()
   const saving = create.isPending || update.isPending
   const saveError = create.error ?? update.error
@@ -73,12 +75,17 @@ export function GoalForm({
       deadline: deadline || null,
       initialAmount: initial,
     }
-    const saved = (result: SavingsGoal) => {
-      clearDraft(draftKey)
-      onDone(result)
-    }
-    if (goal) update.mutate({ id: goal.id, ...fields }, { onSuccess: saved })
-    else create.mutate(fields, { onSuccess: saved })
+    // mutateAsync: the sheet may be closed while saving; the draft must still be cleared.
+    const request = goal
+      ? update.mutateAsync({ id: goal.id, ...fields })
+      : create.mutateAsync(fields)
+    request.then(
+      (result: SavingsGoal) => {
+        clearDraft(draftKey)
+        if (mounted.current) onDone(result)
+      },
+      () => {}, // shown through the form's error
+    )
   }
 
   return (

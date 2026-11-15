@@ -1,5 +1,5 @@
 import { CircleCheck, Info } from 'lucide-react'
-import { dismissToast, useToast } from '../lib/toast'
+import { dismissToast, pauseToast, resumeToast, useToast } from '../lib/toast'
 
 /**
  * Where toasts appear: above the bottom navigation and the form's save bar. Always mounted, so
@@ -14,8 +14,16 @@ export function Toaster() {
       className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+6rem)] z-50 flex justify-center px-4"
     >
       {toast && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: these handlers only hold the timer while a finger or focus is on the toast; the action itself is a button
         <div
           key={toast.id}
+          onPointerEnter={pauseToast}
+          onPointerDown={pauseToast}
+          onPointerLeave={resumeToast}
+          onFocus={pauseToast}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) resumeToast()
+          }}
           className="toast pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl bg-slate-900 py-2 pr-2 pl-4 text-sm text-white shadow-lg dark:bg-slate-100 dark:text-slate-900"
         >
           {toast.tone === 'success' ? (

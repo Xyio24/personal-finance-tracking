@@ -126,3 +126,14 @@ test.describe('with reduced motion', () => {
     await cdp.send('Animation.setPlaybackRate', { playbackRate: 1 })
   })
 })
+
+test('tapping the tab you are on at the top changes nothing', async ({ page }) => {
+  await openApp(page)
+  await goTo(page, 'Hutang')
+  await page.getByRole('radio', { name: /^Piutang/ }).click()
+  await goTo(page, 'Hutang')
+  await expect(page.getByRole('radio', { name: /^Piutang/ })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
+})

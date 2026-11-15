@@ -5,6 +5,7 @@ import { BrowserRouter, MemoryRouter } from 'react-router'
 import { App } from './App'
 import './index.css'
 import { isDemo } from './lib/demo'
+import { setupKeyboardDetection } from './lib/keyboard'
 import { setupNavigation } from './lib/navigation'
 import { setupPwa } from './lib/pwa'
 import { prefetchStartupData } from './lib/queries'
@@ -12,6 +13,7 @@ import { queryClient } from './lib/queryClient'
 
 setupPwa()
 setupNavigation()
+setupKeyboardDetection()
 // TanStack Query assumes "online" until the first online/offline event. Start from the real state
 // so requests made while offline (e.g. opening the installed app) wait for the connection instead
 // of failing; they resume by themselves once the device is back online.

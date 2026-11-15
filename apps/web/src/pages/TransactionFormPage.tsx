@@ -22,10 +22,10 @@ import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
 import { formatDate, todayKey } from '../lib/format'
 import { readLastAccount, rememberAccount } from '../lib/lastAccount'
-import { useGoBack } from '../lib/navigation'
+import { useGoBack, useMounted } from '../lib/navigation'
 import {
+  deletedToast,
   undoCreate,
-  undoDelete,
   useAccounts,
   useCategories,
   useDeleteTransaction,
@@ -155,7 +155,7 @@ function TransactionForm({
   accounts: Account[]
   categories: Category[]
 }) {
-  const draftKey = `transaction:${useLocation().key}`
+  const draftKey = `transaction:${useLocation().key}:${existing ? JSON.stringify(existing) : 'new'}`
   const [draft, setDraft] = useDraftField(draftKey, 'draft', () =>
     initialDraft(existing, initialType, accounts),
   )
@@ -163,6 +163,7 @@ function TransactionForm({
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }))
 
   const save = useSaveTransaction()
+  const mounted = useMounted()
   const remove = useDeleteTransaction()
   const goBack = useGoBack('/transaksi')
 
@@ -203,22 +204,21 @@ function TransactionForm({
       type === 'transfer'
         ? { type, ...common, accountId, toAccountId }
         : { type, ...common, accountId, categoryId: draft.categoryId }
-    save.mutate(
-      { id: existing?.id, input },
-      {
-        onSuccess: (saved) => {
-          rememberAccount(accountId)
-          clearDraft(draftKey)
-          if (existing) toast('Perubahan disimpan')
-          else {
-            undoable(
-              `${transactionTypes[saved.type].label} ${formatRupiah(saved.amount)} dicatat`,
-              () => undoCreate(saved.id),
-            )
-          }
-          goBack()
-        },
+    // mutateAsync: if the user already left, still clear the draft and confirm the save.
+    save.mutateAsync({ id: existing?.id, input }).then(
+      (saved) => {
+        rememberAccount(accountId)
+        clearDraft(draftKey)
+        if (existing) toast('Perubahan disimpan')
+        else {
+          undoable(
+            `${transactionTypes[saved.type].label} ${formatRupiah(saved.amount)} dicatat`,
+            () => undoCreate(saved.id),
+          )
+        }
+        if (mounted.current) goBack()
       },
+      () => {}, // shown through save.error
     )
   }
 
@@ -237,7 +237,7 @@ function TransactionForm({
   }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-md">
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col">
       <SubPageHeader
         title={existing ? 'Ubah transaksi' : 'Catat transaksi'}
         backTo="/transaksi"
@@ -411,7 +411,7 @@ function TransactionForm({
             remove.mutate(existing.id, {
               onSuccess: () => {
                 clearDraft(draftKey)
-                undoable('Transaksi dihapus', () => undoDelete(existing))
+                deletedToast('Transaksi dihapus', existing)
                 goBack()
               },
             })

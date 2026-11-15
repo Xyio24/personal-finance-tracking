@@ -22,8 +22,8 @@ import { errorMessage } from '../lib/errors'
 import { formatDate, formatDayHeading, formatShare, todayKey } from '../lib/format'
 import { useGoBack } from '../lib/navigation'
 import {
+  deletedToast,
   setWrittenOff,
-  undoDelete,
   useAccounts,
   useDebtHistory,
   useDebts,
@@ -406,7 +406,7 @@ export function DebtDetailPage() {
           removingPayment &&
           removePayment.mutate(removingPayment.id, {
             onSuccess: () => {
-              undoable('Pembayaran dihapus', () => undoDelete(removingPayment))
+              deletedToast('Pembayaran dihapus', removingPayment)
               setRemovingPayment(null)
             },
           })

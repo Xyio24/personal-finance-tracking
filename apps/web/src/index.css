@@ -40,8 +40,8 @@
     @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
   }
 
-  /* The on-screen keyboard is up: the bottom navigation would sit on top of it. */
-  body:has(:is(input:not([type="date"]), textarea):focus) [data-bottom-nav] {
+  /* The on-screen keyboard is up (lib/keyboard.ts): the bottom nav would sit on top of it. */
+  html[data-keyboard] [data-bottom-nav] {
     display: none;
   }
 

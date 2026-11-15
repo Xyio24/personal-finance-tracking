@@ -110,7 +110,7 @@ export function attachSheetSwipe(
     const v = velocity(done.samples)
     const close =
       e.type === 'touchend' &&
-      done.offset > 0 &&
+      done.offset > TAP_SLOP &&
       (v > FLICK || (done.offset > done.height * CLOSE_RATIO && v > -0.1))
     if (!close) {
       settleSheet(dialog)

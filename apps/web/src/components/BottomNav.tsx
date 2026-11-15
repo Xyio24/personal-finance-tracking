@@ -20,8 +20,9 @@ function TabLink({ to, label, icon: Icon, end }: Tab) {
       end={end}
       // Tapping the tab you are on, scrolled down, goes back to the top first (like native apps).
       onClick={(e) => {
-        if (pathname !== to || window.scrollY <= 0) return
+        if (pathname !== to) return
         e.preventDefault()
+        if (window.scrollY <= 0) return
         const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
         window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
       }}
