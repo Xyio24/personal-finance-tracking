@@ -71,8 +71,13 @@ export function HomePage() {
     <>
       <PageHeader subtitle={greeting()} title={`Halo, ${firstName} 👋`} />
 
-      <section className="mx-4 rounded-3xl bg-linear-to-br from-emerald-600 to-emerald-800 p-5 text-white shadow-lg shadow-emerald-600/20">
-        <p className="text-sm text-emerald-100">Kekayaan bersih</p>
+      <section
+        aria-labelledby="home-worth"
+        className="mx-4 rounded-3xl bg-linear-to-br from-emerald-600 to-emerald-800 p-5 text-white shadow-lg shadow-emerald-600/20"
+      >
+        <p id="home-worth" className="text-sm text-emerald-100">
+          Kekayaan bersih
+        </p>
         <p className="mt-1 truncate text-3xl font-bold tracking-tight">
           {netWorth === undefined ? (
             <span className="inline-block h-9 w-48 animate-pulse rounded-lg bg-white/20" />
