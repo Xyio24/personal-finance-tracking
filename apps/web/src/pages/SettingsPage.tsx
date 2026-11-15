@@ -11,7 +11,12 @@ const menu: { label: string; description: string; icon: LucideIcon; to?: string 
     icon: Wallet,
     to: '/pengaturan/dompet',
   },
-  { label: 'Kategori', description: 'Segera hadir', icon: Tags },
+  {
+    label: 'Kategori',
+    description: 'Jenis pemasukan dan pengeluaran',
+    icon: Tags,
+    to: '/pengaturan/kategori',
+  },
 ]
 
 export function SettingsPage() {

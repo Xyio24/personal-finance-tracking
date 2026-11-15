@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { AppShell } from './components/AppShell'
 import { RequireAuth } from './components/RequireAuth'
 import { AccountsPage } from './pages/AccountsPage'
+import { CategoriesPage } from './pages/CategoriesPage'
 import { DebtsPage } from './pages/DebtsPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -21,6 +22,7 @@ export function App() {
           <Route path="hutang" element={<DebtsPage />} />
           <Route path="pengaturan" element={<SettingsPage />} />
           <Route path="pengaturan/dompet" element={<AccountsPage />} />
+          <Route path="pengaturan/kategori" element={<CategoriesPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

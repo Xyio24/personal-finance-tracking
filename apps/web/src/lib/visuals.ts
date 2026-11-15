@@ -127,6 +127,21 @@ export const categoryColors: Record<CategoryColor, { soft: string; dot: string }
   },
 }
 
+/** Names for screen readers in the color picker. */
+export const colorNames: Record<CategoryColor, string> = {
+  emerald: 'Hijau',
+  teal: 'Toska',
+  sky: 'Biru muda',
+  blue: 'Biru',
+  violet: 'Ungu',
+  pink: 'Merah muda',
+  rose: 'Merah',
+  orange: 'Oranye',
+  amber: 'Kuning',
+  lime: 'Hijau muda',
+  slate: 'Abu-abu',
+}
+
 export const accountTypes: Record<AccountType, { label: string; icon: LucideIcon }> = {
   cash: { label: 'Tunai', icon: Banknote },
   bank: { label: 'Bank', icon: Landmark },
