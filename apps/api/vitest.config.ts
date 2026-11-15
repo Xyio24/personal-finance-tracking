@@ -1,5 +1,5 @@
 import { configDefaults, defineConfig } from 'vitest/config'
-import { testEnv } from './src/test/env'
+import { testEnv } from './src/test/env.ts'
 
 // Unit tests: no database. Integration tests (*.int.test.ts) have their own config.
 export default defineConfig({

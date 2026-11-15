@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { TEST_DATABASE_URL, testEnv } from './src/test/env'
+import { TEST_DATABASE_URL, testEnv } from './src/test/env.ts'
 
 // Integration tests against a real PostgreSQL (`npm run db:up` locally, a service in CI).
 export default defineConfig({
