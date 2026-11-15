@@ -2,6 +2,7 @@ import {
   ChevronRight,
   CircleCheck,
   Download,
+  FileSpreadsheet,
   LoaderCircle,
   LogOut,
   type LucideIcon,
@@ -14,6 +15,8 @@ import { Link } from 'react-router'
 import { Avatar } from '../components/Avatar'
 import { PageHeader } from '../components/PageHeader'
 import { useCurrentUser, useLogout } from '../lib/auth'
+import { isDemo } from '../lib/demo'
+import { downloadDemoExport, EXPORT_URL } from '../lib/export'
 import { isIos, isStandalone, useInstallPrompt } from '../lib/pwa'
 
 const listClass =
@@ -89,6 +92,18 @@ export function SettingsPage() {
         )}
       </Section>
 
+      <Section title="Data">
+        {isDemo ? (
+          <button type="button" onClick={downloadDemoExport} className={pressableClass}>
+            <ExportText />
+          </button>
+        ) : (
+          <a href={EXPORT_URL} download className={pressableClass}>
+            <ExportText />
+          </a>
+        )}
+      </Section>
+
       <button
         type="button"
         onClick={() => logout.mutate()}
@@ -103,6 +118,16 @@ export function SettingsPage() {
         Keluar
       </button>
     </>
+  )
+}
+
+function ExportText() {
+  return (
+    <RowText
+      icon={FileSpreadsheet}
+      label="Ekspor transaksi (CSV)"
+      description="Semua transaksi, bisa dibuka di Excel atau Google Sheets"
+    />
   )
 }
 

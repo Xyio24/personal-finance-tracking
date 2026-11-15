@@ -30,6 +30,7 @@ import {
   toDateKey,
   transactionInputSchema,
   transactionListQuerySchema,
+  transactionsToCsv,
 } from '@finance/shared'
 import type { z } from 'zod'
 import { ApiError } from './errors'
@@ -89,7 +90,28 @@ function route(
   }
   if (resource === 'savings') return savingsRoute(db, method, id, body)
   if (resource === 'debts') return debtsRoute(db, method, id, body)
+  if (resource === 'export' && id === 'transactions.csv' && method === 'GET') return exportCsv(db)
   throw new ApiError(404, 'not_found')
+}
+
+/** Same file as GET /api/export/transactions.csv, built from the demo data. */
+function exportCsv(db: Store): string {
+  const name = <T extends { id: string; name: string }>(items: T[], id: string | null) =>
+    items.find((item) => item.id === id)?.name ?? null
+  const rows = [...db.transactions]
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+    .map((t) => ({
+      date: t.date,
+      type: t.type,
+      amount: t.amount,
+      account: name(db.accounts, t.accountId) ?? '',
+      toAccount: name(db.accounts, t.toAccountId),
+      category: name(db.categories, t.categoryId),
+      goal: name(db.goals, t.goalId),
+      person: db.debts.find((d) => d.id === t.debtId)?.person ?? null,
+      note: t.note,
+    }))
+  return transactionsToCsv(rows)
 }
 
 // Accounts

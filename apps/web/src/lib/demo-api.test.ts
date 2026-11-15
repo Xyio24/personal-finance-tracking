@@ -208,3 +208,21 @@ describe('demo API debts', () => {
     ).rejects.toSatisfy((e) => e instanceof ApiError && e.message === 'managed_by_debt')
   })
 })
+
+describe('demo export', () => {
+  it('builds the same CSV as the server, one line per transaction', async () => {
+    const csv = await demoRequest<string>('/export/transactions.csv')
+    const lines = csv.replace(/^﻿/, '').trimEnd().split('\r\n')
+    const all = await demoRequest<Transaction[]>('/transactions?q=a')
+    expect(lines[0]).toBe(
+      'Tanggal,Jenis,Jumlah,Dompet,Dompet tujuan,Kategori,Tabungan,Orang,Catatan',
+    )
+    expect(lines.length).toBeGreaterThan(all.length)
+    expect(lines.some((line) => line.includes(',Terima piutang,') && line.includes(',Budi,'))).toBe(
+      true,
+    )
+    // Newest first
+    const dates = lines.slice(1).map((line) => line.slice(0, 10))
+    expect([...dates].sort().reverse()).toEqual(dates)
+  })
+})

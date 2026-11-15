@@ -46,6 +46,9 @@ export async function signIn(email = 'owner@example.com') {
     put: <T = unknown>(path: string, body: unknown) => call<T>('PUT', path, body),
     patch: <T = unknown>(path: string, body: unknown) => call<T>('PATCH', path, body),
     del: <T = unknown>(path: string) => call<T>('DELETE', path),
+    /** A non-JSON response (e.g. a file download), as is. */
+    download: (path: string) =>
+      app.request(`/api${path}`, { headers: { cookie: `session=${token}` } }),
   }
 }
 

@@ -10,6 +10,7 @@ import { accountRoutes } from './routes/accounts'
 import { authRoutes } from './routes/auth'
 import { categoryRoutes } from './routes/categories'
 import { debtRoutes } from './routes/debts'
+import { exportRoutes } from './routes/export'
 import { healthRoutes } from './routes/health'
 import { meRoutes } from './routes/me'
 import { reportRoutes } from './routes/reports'
@@ -51,6 +52,7 @@ export function createApp() {
   app.route('/api/reports', reportRoutes)
   app.route('/api/savings', savingsRoutes)
   app.route('/api/debts', debtRoutes)
+  app.route('/api/export', exportRoutes)
   app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404))
 
   // Production: the API also serves the built React app from the same origin.
