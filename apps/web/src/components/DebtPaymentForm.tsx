@@ -1,6 +1,7 @@
 import { type Account, type Debt, formatRupiah, type Transaction } from '@finance/shared'
 import { LoaderCircle, Trash2 } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import type { FormEvent } from 'react'
+import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
 import { readLastAccount, rememberAccount } from '../lib/lastAccount'
@@ -32,12 +33,16 @@ export function DebtPaymentForm({
   // An archived wallet stays selectable for the payment that already uses it.
   const choices = accounts.filter((a) => !a.archived || a.id === payment?.accountId)
   const last = readLastAccount()
-  const [amount, setAmount] = useState(payment?.amount ?? 0)
-  const [accountId, setAccountId] = useState(
-    payment?.accountId ?? choices.find((a) => a.id === last)?.id ?? choices[0]?.id ?? '',
+  // Typed values survive the sheet closing by accident; saving clears them.
+  const draftKey = payment ? null : `pay:${debt.id}`
+  const [amount, setAmount] = useDraftField(draftKey, 'amount', () => payment?.amount ?? 0)
+  const [accountId, setAccountId] = useDraftField(
+    draftKey,
+    'accountId',
+    () => payment?.accountId ?? choices.find((a) => a.id === last)?.id ?? choices[0]?.id ?? '',
   )
-  const [date, setDate] = useState(payment?.date ?? todayKey())
-  const [note, setNote] = useState(payment?.note ?? '')
+  const [date, setDate] = useDraftField(draftKey, 'date', () => payment?.date ?? todayKey())
+  const [note, setNote] = useDraftField(draftKey, 'note', () => payment?.note ?? '')
   const save = useSaveTransaction()
 
   // Same rule as the server: the amount minus every other payment (a write-off doesn't count).
@@ -63,6 +68,7 @@ export function DebtPaymentForm({
       {
         onSuccess: (saved) => {
           rememberAccount(accountId)
+          clearDraft(draftKey)
           if (payment) toast('Pembayaran diperbarui')
           else {
             undoable(`Pembayaran ${formatRupiah(amount)} dicatat`, () => undoCreate(saved.id))

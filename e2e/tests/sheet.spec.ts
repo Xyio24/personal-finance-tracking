@@ -111,3 +111,28 @@ test.describe('with reduced motion', () => {
     await expect(sheet).toBeHidden({ timeout: 1000 })
   })
 })
+
+test('what was typed comes back after closing a sheet by accident, not after saving', async ({
+  page,
+}) => {
+  await openApp(page)
+  await goTo(page, 'Tabungan')
+  await page.getByRole('link', { name: /Dana Darurat/ }).click()
+  const isi = page.getByRole('button', { name: 'Isi', exact: true })
+  const sheet = page.getByRole('dialog', { name: 'Isi tabungan' })
+
+  await isi.click()
+  await page.locator('#move-amount').fill('75000')
+  await page.locator('#move-note').fill('Sisa gaji')
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
+
+  await isi.click()
+  await expect(page.locator('#move-amount')).toHaveValue('75.000')
+  await expect(page.locator('#move-note')).toHaveValue('Sisa gaji')
+  await sheet.getByRole('button', { name: 'Isi tabungan' }).click()
+  await expect(sheet).toBeHidden()
+
+  await isi.click()
+  await expect(page.locator('#move-amount')).toHaveValue('')
+})

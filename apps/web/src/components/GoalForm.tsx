@@ -5,7 +5,8 @@ import {
   type SavingsGoal,
 } from '@finance/shared'
 import { Archive, ArchiveRestore, LoaderCircle, Trash2, X } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import type { FormEvent } from 'react'
+import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
 import { setArchived, useCreateGoal, useUpdateGoal } from '../lib/queries'
 import { undoable } from '../lib/toast'
@@ -34,12 +35,22 @@ export function GoalForm({
   /** Editing only: shows a delete button; the page asks for confirmation. */
   onDelete?: () => void
 }) {
-  const [name, setName] = useState(goal?.name ?? '')
-  const [icon, setIcon] = useState<CategoryIcon>(goal?.icon ?? 'piggy-bank')
-  const [color, setColor] = useState<CategoryColor>(goal?.color ?? 'emerald')
-  const [target, setTarget] = useState(goal?.targetAmount ?? 0)
-  const [deadline, setDeadline] = useState(goal?.deadline ?? '')
-  const [initial, setInitial] = useState(goal?.initialAmount ?? 0)
+  // Typed values survive the sheet closing by accident; saving clears them.
+  const draftKey = goal ? null : 'goal:new'
+  const [name, setName] = useDraftField(draftKey, 'name', () => goal?.name ?? '')
+  const [icon, setIcon] = useDraftField<CategoryIcon>(
+    draftKey,
+    'icon',
+    () => goal?.icon ?? 'piggy-bank',
+  )
+  const [color, setColor] = useDraftField<CategoryColor>(
+    draftKey,
+    'color',
+    () => goal?.color ?? 'emerald',
+  )
+  const [target, setTarget] = useDraftField(draftKey, 'target', () => goal?.targetAmount ?? 0)
+  const [deadline, setDeadline] = useDraftField(draftKey, 'deadline', () => goal?.deadline ?? '')
+  const [initial, setInitial] = useDraftField(draftKey, 'initial', () => goal?.initialAmount ?? 0)
 
   const create = useCreateGoal()
   const update = useUpdateGoal()
@@ -62,8 +73,12 @@ export function GoalForm({
       deadline: deadline || null,
       initialAmount: initial,
     }
-    if (goal) update.mutate({ id: goal.id, ...fields }, { onSuccess: onDone })
-    else create.mutate(fields, { onSuccess: onDone })
+    const saved = (result: SavingsGoal) => {
+      clearDraft(draftKey)
+      onDone(result)
+    }
+    if (goal) update.mutate({ id: goal.id, ...fields }, { onSuccess: saved })
+    else create.mutate(fields, { onSuccess: saved })
   }
 
   return (

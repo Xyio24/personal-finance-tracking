@@ -6,7 +6,8 @@ import {
   type Transaction,
 } from '@finance/shared'
 import { LoaderCircle, Trash2 } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import type { FormEvent } from 'react'
+import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
 import { readLastAccount, rememberAccount } from '../lib/lastAccount'
@@ -40,12 +41,16 @@ export function GoalMoveForm({
   // An archived wallet stays selectable for the entry that already uses it.
   const choices = accounts.filter((a) => !a.archived || a.id === move?.accountId)
   const last = readLastAccount()
-  const [amount, setAmount] = useState(move?.amount ?? 0)
-  const [accountId, setAccountId] = useState(
-    move?.accountId ?? choices.find((a) => a.id === last)?.id ?? choices[0]?.id ?? '',
+  // Typed values survive the sheet closing by accident; saving clears them.
+  const draftKey = move ? null : `move:${goal.id}:${type}`
+  const [amount, setAmount] = useDraftField(draftKey, 'amount', () => move?.amount ?? 0)
+  const [accountId, setAccountId] = useDraftField(
+    draftKey,
+    'accountId',
+    () => move?.accountId ?? choices.find((a) => a.id === last)?.id ?? choices[0]?.id ?? '',
   )
-  const [date, setDate] = useState(move?.date ?? todayKey())
-  const [note, setNote] = useState(move?.note ?? '')
+  const [date, setDate] = useDraftField(draftKey, 'date', () => move?.date ?? todayKey())
+  const [note, setNote] = useDraftField(draftKey, 'note', () => move?.note ?? '')
   const save = useSaveTransaction()
 
   // What the goal holds without the entry being corrected.
@@ -70,6 +75,7 @@ export function GoalMoveForm({
       {
         onSuccess: (saved) => {
           rememberAccount(accountId)
+          clearDraft(draftKey)
           if (move) toast('Perubahan disimpan')
           else {
             undoable(

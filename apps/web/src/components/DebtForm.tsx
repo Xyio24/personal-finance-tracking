@@ -1,6 +1,7 @@
 import { type Account, type Debt, type DebtDirection, formatRupiah } from '@finance/shared'
 import { LoaderCircle, Trash2, X } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import type { FormEvent } from 'react'
+import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
 import { readLastAccount } from '../lib/lastAccount'
@@ -39,17 +40,23 @@ export function DebtForm({
   // An archived wallet stays selectable for the debt that already uses it.
   const choices = accounts.filter((a) => !a.archived || a.id === debt?.accountId)
   const last = readLastAccount()
-  const [direction, setDirection] = useState<DebtDirection>(debt?.direction ?? initialDirection)
-  const [person, setPerson] = useState(debt?.person ?? '')
-  const [amount, setAmount] = useState(debt?.amount ?? 0)
-  const [date, setDate] = useState(debt?.date ?? todayKey())
-  const [accountId, setAccountId] = useState(
+  // Typed values survive the sheet closing by accident; saving clears them.
+  const draftKey = debt ? null : `debt:new:${initialDirection}`
+  const [direction, setDirection] = useDraftField<DebtDirection>(
+    draftKey,
+    'direction',
+    () => debt?.direction ?? initialDirection,
+  )
+  const [person, setPerson] = useDraftField(draftKey, 'person', () => debt?.person ?? '')
+  const [amount, setAmount] = useDraftField(draftKey, 'amount', () => debt?.amount ?? 0)
+  const [date, setDate] = useDraftField(draftKey, 'date', () => debt?.date ?? todayKey())
+  const [accountId, setAccountId] = useDraftField(draftKey, 'accountId', () =>
     debt
       ? (debt.accountId ?? '')
       : (choices.find((a) => a.id === last)?.id ?? choices[0]?.id ?? ''),
   )
-  const [dueDate, setDueDate] = useState(debt?.dueDate ?? '')
-  const [note, setNote] = useState(debt?.note ?? '')
+  const [dueDate, setDueDate] = useDraftField(draftKey, 'dueDate', () => debt?.dueDate ?? '')
+  const [note, setNote] = useDraftField(draftKey, 'note', () => debt?.note ?? '')
 
   const create = useCreateDebt()
   const update = useUpdateDebt()
@@ -71,8 +78,12 @@ export function DebtForm({
       note: note.trim() || null,
       accountId: accountId || null,
     }
-    if (debt) update.mutate({ id: debt.id, ...fields }, { onSuccess: onDone })
-    else create.mutate(fields, { onSuccess: onDone })
+    const saved = (result: Debt) => {
+      clearDraft(draftKey)
+      onDone(result)
+    }
+    if (debt) update.mutate({ id: debt.id, ...fields }, { onSuccess: saved })
+    else create.mutate(fields, { onSuccess: saved })
   }
 
   const payable = direction === 'payable'

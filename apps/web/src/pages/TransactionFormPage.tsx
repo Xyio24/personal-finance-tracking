@@ -9,7 +9,7 @@ import {
 } from '@finance/shared'
 import { LoaderCircle, Trash2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
-import { Link, Navigate, useParams, useSearchParams } from 'react-router'
+import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router'
 import { AmountInput } from '../components/AmountInput'
 import { CategoryBadge } from '../components/Badges'
 import { ConfirmSheet } from '../components/ConfirmSheet'
@@ -18,6 +18,7 @@ import { ListSkeleton, LoadError } from '../components/QueryState'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { HeaderIconButton, SubPageHeader } from '../components/SubPageHeader'
 import { dangerButtonClass, inputClass, labelClass, primaryButtonClass } from '../components/ui'
+import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
 import { formatDate, todayKey } from '../lib/format'
 import { readLastAccount, rememberAccount } from '../lib/lastAccount'
@@ -154,7 +155,10 @@ function TransactionForm({
   accounts: Account[]
   categories: Category[]
 }) {
-  const [draft, setDraft] = useState(() => initialDraft(existing, initialType, accounts))
+  const draftKey = `transaction:${useLocation().key}`
+  const [draft, setDraft] = useDraftField(draftKey, 'draft', () =>
+    initialDraft(existing, initialType, accounts),
+  )
   const [confirmDelete, setConfirmDelete] = useState(false)
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }))
 
@@ -204,6 +208,7 @@ function TransactionForm({
       {
         onSuccess: (saved) => {
           rememberAccount(accountId)
+          clearDraft(draftKey)
           if (existing) toast('Perubahan disimpan')
           else {
             undoable(
@@ -405,6 +410,7 @@ function TransactionForm({
           onConfirm={() =>
             remove.mutate(existing.id, {
               onSuccess: () => {
+                clearDraft(draftKey)
                 undoable('Transaksi dihapus', () => undoDelete(existing))
                 goBack()
               },
