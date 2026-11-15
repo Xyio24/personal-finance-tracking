@@ -34,6 +34,9 @@ export function AmountInput({
         autoComplete="off"
         // biome-ignore lint/a11y/noAutofocus: the amount is the first thing to type on this screen
         autoFocus={autoFocus}
+        // React focuses on mount, which does nothing inside a sheet that is not shown yet;
+        // Sheet focuses the element marked like this once it opens.
+        data-autofocus={autoFocus || undefined}
         placeholder="0"
         value={formatAmountInput(value)}
         onChange={(e) => onChange(parseAmountInput(e.target.value))}

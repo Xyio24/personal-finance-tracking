@@ -27,9 +27,126 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    scrollbar-gutter: stable;
+  }
+
+  /* The page behind an open sheet stays put. iOS home-screen apps ignore this (WebKit bug
+     259568), so the sheet also swallows touch moves on its backdrop (lib/sheetSwipe.ts). */
+  html:has(dialog:modal) {
+    overflow: hidden;
   }
 
   body {
     @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  }
+}
+
+@layer components {
+  /*
+   * Sheet motion. Sheet.tsx moves data-state on the <dialog>: none (just shown, off-screen),
+   * then open, then closing, then dialog.close(). While a finger drags it sets data-dragging,
+   * --sheet-drag (px) and --sheet-progress (0..1); after a flick, --sheet-flick (exit time).
+   * The base rules are the reduced-motion version: fades only, nothing slides by itself.
+   */
+  .sheet {
+    --sheet-bg: var(--color-white);
+    opacity: 0;
+    transform: translate3d(0, var(--sheet-drag, 0px), 0);
+    transition: opacity 150ms linear;
+    /* Pulled upward, the sheet lifts off the bottom edge; its own shadow fills the gap. */
+    box-shadow: 0 3rem 0 0 var(--sheet-bg);
+  }
+  .sheet[data-state="open"] {
+    opacity: 1;
+  }
+
+  .sheet::backdrop {
+    background-color: rgb(2 6 23 / 0.45);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    /* Opacity also fades the blur (Filter Effects 2), so the blur itself never animates. */
+    opacity: 0;
+    transition: opacity 150ms linear;
+  }
+  /* --sheet-progress reaches ::backdrop by inheritance (Chrome 122, Safari 17.4); older engines
+     use the fallback and just don't fade while dragging. */
+  .sheet[data-state="open"]::backdrop {
+    opacity: calc(1 - var(--sheet-progress, 0));
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .sheet {
+      --sheet-bg: var(--color-slate-900);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sheet {
+      opacity: 1;
+      transform: translate3d(0, 100%, 0);
+      transition: transform var(--sheet-flick, 260ms) cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .sheet[data-state="open"] {
+      transform: translate3d(0, var(--sheet-drag, 0px), 0);
+      transition-duration: 420ms;
+    }
+    .sheet::backdrop {
+      transition: opacity var(--sheet-flick, 260ms) ease-out;
+    }
+    .sheet[data-state="open"]::backdrop {
+      transition-duration: 300ms;
+    }
+
+    /* Wide screens: a centered dialog that fades and grows in. */
+    @media (width >= 40rem) {
+      .sheet {
+        opacity: 0;
+        transform: translate3d(0, 0.5rem, 0) scale(0.96);
+        transition:
+          opacity 150ms ease-in,
+          transform 150ms cubic-bezier(0.4, 0, 1, 1);
+      }
+      .sheet[data-state="open"] {
+        opacity: 1;
+        transform: none;
+        transition-duration: 220ms;
+        transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+      }
+      .sheet::backdrop {
+        transition-duration: 150ms;
+      }
+      .sheet[data-state="open"]::backdrop {
+        transition-duration: 220ms;
+      }
+    }
+  }
+
+  @media (width >= 40rem) {
+    .sheet {
+      box-shadow: 0 1.5rem 3rem -1rem rgb(0 0 0 / 0.35);
+    }
+  }
+
+  /* Nothing lags behind the finger. Must stay after the rules above. */
+  .sheet[data-dragging],
+  .sheet[data-dragging]::backdrop {
+    transition: none;
+  }
+  .sheet[data-dragging] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .sheet::backdrop {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      background-color: rgb(2 6 23 / 0.6);
+    }
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .sheet::backdrop {
+      background-color: rgb(2 6 23 / 0.6);
+    }
   }
 }
