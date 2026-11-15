@@ -1,8 +1,7 @@
 import { formatRupiah, summarize, toMonthKey } from '@finance/shared'
-import { ChartPie } from 'lucide-react'
 import { Link } from 'react-router'
 import { AccountBadge } from '../components/Badges'
-import { ComingSoon } from '../components/ComingSoon'
+import { CategoryBreakdown } from '../components/CategoryBreakdown'
 import { PageHeader } from '../components/PageHeader'
 import { ListSkeleton, LoadError } from '../components/QueryState'
 import { TransactionRow, useLookups } from '../components/TransactionRow'
@@ -42,7 +41,7 @@ export function HomePage() {
 
       <section className="mx-4 rounded-3xl bg-linear-to-br from-emerald-600 to-emerald-800 p-5 text-white shadow-lg shadow-emerald-600/20">
         <p className="text-sm text-emerald-100">Total saldo</p>
-        <p className="mt-1 truncate text-3xl font-bold tracking-tight tabular-nums">
+        <p className="mt-1 truncate text-3xl font-bold tracking-tight">
           {totalBalance === undefined ? (
             <span className="inline-block h-9 w-48 animate-pulse rounded-lg bg-white/20" />
           ) : (
@@ -52,11 +51,11 @@ export function HomePage() {
         <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-white/15 pt-3">
           <div className="min-w-0">
             <dt className="text-xs text-emerald-100/80">Pemasukan bulan ini</dt>
-            <dd className="truncate font-semibold tabular-nums">+{formatRupiah(totals.income)}</dd>
+            <dd className="truncate font-semibold">+{formatRupiah(totals.income)}</dd>
           </div>
           <div className="min-w-0">
             <dt className="text-xs text-emerald-100/80">Pengeluaran bulan ini</dt>
-            <dd className="truncate font-semibold tabular-nums">−{formatRupiah(totals.expense)}</dd>
+            <dd className="truncate font-semibold">−{formatRupiah(totals.expense)}</dd>
           </div>
         </dl>
       </section>
@@ -99,6 +98,32 @@ export function HomePage() {
         )}
       </section>
 
+      <section className="mt-6" aria-labelledby="home-spending">
+        <div className="mx-4 mb-2 flex items-center justify-between">
+          <h2 id="home-spending" className="font-semibold">
+            Pengeluaran bulan ini
+          </h2>
+          <Link to="/laporan" className={linkClass}>
+            Laporan
+          </Link>
+        </div>
+        {listFailed ? (
+          <LoadError error={listFailed.error} onRetry={() => listFailed.refetch()} />
+        ) : transactions.isPending || categories.isPending ? (
+          <ListSkeleton rows={2} />
+        ) : (
+          <div className={`mx-4 px-4 py-2 ${cardClass}`}>
+            <CategoryBreakdown
+              transactions={transactions.data ?? []}
+              lookups={lookups}
+              type="expense"
+              month={month}
+              limit={4}
+            />
+          </div>
+        )}
+      </section>
+
       <section className="mt-6" aria-labelledby="home-recent">
         <div className="mx-4 mb-2 flex items-center justify-between">
           <h2 id="home-recent" className="font-semibold">
@@ -131,15 +156,6 @@ export function HomePage() {
           </ul>
         )}
       </section>
-
-      <div className="mt-6">
-        <ComingSoon
-          icon={ChartPie}
-          title="Grafik & analisis"
-          description="Grafik pengeluaran per kategori, tren bulanan, filter, dan pencarian transaksi."
-          phase="Fase 2"
-        />
-      </div>
     </>
   )
 }
