@@ -11,7 +11,7 @@ di server rumah lewat Cloudflare Tunnel.
 | 0. Fondasi        | Monorepo, database, login Google + allowlist, Docker, deploy | ✅     |
 | 1. Inti           | Dompet, kategori, transaksi, transfer, riwayat per bulan     | ✅     |
 | 2. Dashboard      | Grafik per kategori, tren bulanan, filter, pencarian         | ✅     |
-| 3. Tabungan       | Isi tabungan, target + deadline, culik tabungan 🥷           | ⏳     |
+| 3. Tabungan       | Isi tabungan, target + deadline, culik tabungan 🥷           | ✅     |
 | 4. Hutang/Piutang | Catat, cicil, jatuh tempo, lunas/ikhlaskan                   | ⏳     |
 | 5. Polish         | PWA, export CSV, backup offsite, test e2e                    | ⏳     |
 
@@ -72,14 +72,19 @@ sekali.
   pertama
 - **Transaksi**: pengeluaran, pemasukan, dan transfer antar dompet; ubah dan hapus
 - **Riwayat** per bulan, dikelompokkan per hari, dengan total pemasukan/pengeluaran/selisih
-- **Beranda**: total saldo, ringkasan bulan ini, saldo per dompet, pengeluaran per kategori,
+- **Beranda**: kekayaan bersih (dompet + tabungan), ringkasan bulan ini, saldo per dompet,
+  pengeluaran per kategori,
   transaksi terakhir
 - **Laporan** per bulan: pemasukan, pengeluaran, selisih, pengeluaran per hari, perbandingan
   dengan bulan lalu (bulan berjalan dibandingkan dengan tanggal yang sama), tren 6 bulan, dan
   rincian per kategori
-- **Pencarian** catatan/kategori di semua bulan dan **filter** jenis, kategori, dompet
+- **Pencarian** catatan/kategori/tabungan di semua bulan dan **filter** jenis, kategori, dompet
+- **Tabungan**: pos dengan target & deadline opsional, isi tabungan, culik tabungan 🥷 (tidak
+  bisa melebihi isinya), status sesuai jalur / mepet / perlu dikejar / tercapai berdasarkan laju
+  menabung 3 bulan terakhir, dan riwayat per pos
 
-Uang disimpan sebagai rupiah bulat (`bigint`), jadi semua penjumlahan eksak. Dompet atau
+Uang disimpan sebagai rupiah bulat (`bigint`), jadi semua penjumlahan eksak. Isi dan culik
+tabungan hanya memindahkan uang, jadi tidak dihitung sebagai pemasukan atau pengeluaran. Dompet atau
 kategori yang sudah dipakai tidak bisa dihapus, hanya diarsipkan, supaya riwayat tetap utuh.
 
 | Perintah                    | Fungsi                                                              |
