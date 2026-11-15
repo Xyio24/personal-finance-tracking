@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router'
 import { ApiError, api } from './api'
 import { demoSession, demoUser, isDemo } from './demo'
 
-const meKey = ['me'] as const
+export const meKey = ['me'] as const
 
 /** The logged-in user, or null when there is no valid session. */
 export function useMe() {

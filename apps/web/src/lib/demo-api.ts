@@ -1,0 +1,310 @@
+import {
+  type Account,
+  accountInputSchema,
+  accountUpdateSchema,
+  type Category,
+  CUSTOM_CATEGORY_SORT,
+  categoryInputSchema,
+  categoryUpdateSchema,
+  computeBalances,
+  DEFAULT_CATEGORIES,
+  defaultCategorySort,
+  monthRange,
+  shiftDate,
+  type Transaction,
+  type TransactionInput,
+  toDateKey,
+  transactionInputSchema,
+} from '@finance/shared'
+import type { z } from 'zod'
+import { ApiError } from './errors'
+
+/**
+ * In-memory stand-in for the API, used only by demo builds (`vite --mode demo`). It follows the
+ * same rules as the server so the preview behaves like the real app; nothing is persisted and
+ * normal builds never include this file. Everything is created lazily on first use.
+ */
+
+type StoredAccount = Omit<Account, 'balance'>
+type StoredCategory = Category & { sortOrder: number }
+type Store = {
+  accounts: StoredAccount[]
+  categories: StoredCategory[]
+  transactions: Transaction[]
+}
+
+let store: Store | null = null
+
+/** Start over from fresh example data (used by tests). */
+export function resetDemoData() {
+  store = null
+}
+
+export async function demoRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  await new Promise((resolve) => setTimeout(resolve, 120)) // feel like a network round trip
+  store ??= seed()
+
+  const url = new URL(path, 'https://demo.invalid')
+  const [resource, id] = url.pathname.split('/').filter(Boolean)
+  const method = (init.method ?? 'GET').toUpperCase()
+  const body: unknown = typeof init.body === 'string' ? JSON.parse(init.body) : undefined
+
+  const result = route(store, method, resource, id, url.searchParams, body)
+  return (result === undefined ? undefined : structuredClone(result)) as T
+}
+
+function route(
+  db: Store,
+  method: string,
+  resource: string | undefined,
+  id: string | undefined,
+  query: URLSearchParams,
+  body: unknown,
+): unknown {
+  if (resource === 'auth') return undefined
+  if (resource === 'accounts') return accountsRoute(db, method, id, body)
+  if (resource === 'categories') return categoriesRoute(db, method, id, body)
+  if (resource === 'transactions') return transactionsRoute(db, method, id, query, body)
+  throw new ApiError(404, 'not_found')
+}
+
+// Accounts
+
+function withBalances(db: Store): Account[] {
+  const balances = computeBalances(db.accounts, db.transactions)
+  return db.accounts.map((a) => ({ ...a, balance: balances.get(a.id) ?? a.initialBalance }))
+}
+
+function accountsRoute(db: Store, method: string, id: string | undefined, body: unknown) {
+  if (!id && method === 'GET') return withBalances(db)
+  if (!id && method === 'POST') {
+    const account = {
+      ...parse(accountInputSchema, body),
+      id: uuid(),
+      archived: false,
+      createdAt: now(),
+    }
+    db.accounts.push(account)
+    return { ...account, balance: account.initialBalance }
+  }
+  const account = find(db.accounts, id)
+  if (method === 'PATCH') {
+    const { archived, ...fields } = parse(accountUpdateSchema, body)
+    Object.assign(account, fields, archived === undefined ? {} : { archived })
+    return withBalances(db).find((a) => a.id === account.id)
+  }
+  if (method === 'DELETE') {
+    if (db.transactions.some((t) => t.accountId === id || t.toAccountId === id)) {
+      throw new ApiError(409, 'in_use')
+    }
+    db.accounts = db.accounts.filter((a) => a.id !== id)
+    return undefined
+  }
+  throw new ApiError(404, 'not_found')
+}
+
+// Categories
+
+const publicCategory = ({ sortOrder: _, ...category }: StoredCategory): Category => category
+
+function categoriesRoute(db: Store, method: string, id: string | undefined, body: unknown) {
+  if (!id && method === 'GET') {
+    return [...db.categories].sort((a, b) => a.sortOrder - b.sortOrder).map(publicCategory)
+  }
+  if (!id && method === 'POST') {
+    const category = {
+      ...parse(categoryInputSchema, body),
+      id: uuid(),
+      archived: false,
+      createdAt: now(),
+      sortOrder: CUSTOM_CATEGORY_SORT,
+    }
+    db.categories.push(category)
+    return publicCategory(category)
+  }
+  const category = find(db.categories, id)
+  if (method === 'PATCH') {
+    const { archived, ...fields } = parse(categoryUpdateSchema, body)
+    Object.assign(category, fields, archived === undefined ? {} : { archived })
+    return publicCategory(category)
+  }
+  if (method === 'DELETE') {
+    if (db.transactions.some((t) => t.categoryId === id)) throw new ApiError(409, 'in_use')
+    db.categories = db.categories.filter((c) => c.id !== id)
+    return undefined
+  }
+  throw new ApiError(404, 'not_found')
+}
+
+// Transactions
+
+function transactionsRoute(
+  db: Store,
+  method: string,
+  id: string | undefined,
+  query: URLSearchParams,
+  body: unknown,
+) {
+  if (!id && method === 'GET') {
+    const { start, end } = monthRange(query.get('month') ?? toDateKey(new Date()).slice(0, 7))
+    return db.transactions
+      .filter((t) => t.date >= start && t.date < end)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+  }
+  if (!id && method === 'POST') {
+    const input = parse(transactionInputSchema, body)
+    checkReferences(db, input)
+    const transaction = { ...toValues(input), id: uuid(), createdAt: now() }
+    db.transactions.push(transaction)
+    return transaction
+  }
+  const existing = find(db.transactions, id)
+  if (method === 'GET') return existing
+  if (method === 'PUT') {
+    const input = parse(transactionInputSchema, body)
+    checkReferences(db, input, existing)
+    Object.assign(existing, toValues(input))
+    return existing
+  }
+  if (method === 'DELETE') {
+    db.transactions = db.transactions.filter((t) => t.id !== id)
+    return undefined
+  }
+  throw new ApiError(404, 'not_found')
+}
+
+function toValues(input: TransactionInput) {
+  return {
+    type: input.type,
+    amount: input.amount,
+    accountId: input.accountId,
+    toAccountId: input.type === 'transfer' ? input.toAccountId : null,
+    categoryId: input.type === 'transfer' ? null : input.categoryId,
+    date: input.date,
+    note: input.note || null,
+  }
+}
+
+function checkReferences(db: Store, input: TransactionInput, existing?: Transaction) {
+  const ids = input.type === 'transfer' ? [input.accountId, input.toAccountId] : [input.accountId]
+  const kept = new Set([existing?.accountId, existing?.toAccountId])
+  for (const accountId of ids) {
+    const account = db.accounts.find((a) => a.id === accountId)
+    if (!account) throw new ApiError(400, 'invalid_account')
+    if (account.archived && !kept.has(account.id)) throw new ApiError(400, 'archived_account')
+  }
+  if (input.type !== 'transfer') {
+    const category = db.categories.find((c) => c.id === input.categoryId)
+    if (!category || category.type !== input.type) throw new ApiError(400, 'invalid_category')
+    if (category.archived && category.id !== existing?.categoryId) {
+      throw new ApiError(400, 'archived_category')
+    }
+  }
+}
+
+// Helpers
+
+function parse<S extends z.ZodType>(schema: S, body: unknown): z.infer<S> {
+  const result = schema.safeParse(body)
+  if (!result.success) throw new ApiError(400, 'invalid_input')
+  return result.data
+}
+
+function find<T extends { id: string }>(items: T[], id: string | undefined): T {
+  const item = items.find((i) => i.id === id)
+  if (!item) throw new ApiError(404, 'not_found')
+  return item
+}
+
+const now = () => new Date().toISOString()
+
+/** RFC 4122 v4 id; works outside secure contexts too (e.g. a demo opened from a file). */
+function uuid(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+/** Example data around today's date, so every screen has something to show. */
+function seed(): Store {
+  const createdAt = now()
+  const accounts: StoredAccount[] = [
+    { name: 'Tunai', type: 'cash' as const, initialBalance: 450_000 },
+    { name: 'BCA', type: 'bank' as const, initialBalance: 6_200_000 },
+    { name: 'GoPay', type: 'ewallet' as const, initialBalance: 120_000 },
+  ].map((a) => ({ ...a, id: uuid(), archived: false, createdAt }))
+  const categories: StoredCategory[] = DEFAULT_CATEGORIES.map((c, index) => ({
+    ...c,
+    id: uuid(),
+    archived: false,
+    createdAt,
+    sortOrder: defaultCategorySort(c, index),
+  }))
+
+  const account = (name: string) => accounts.find((a) => a.name === name)?.id ?? ''
+  const category = (name: string, type: 'income' | 'expense') =>
+    categories.find((c) => c.name === name && c.type === type)?.id ?? null
+  const today = toDateKey(new Date())
+
+  type Example = [
+    daysAgo: number,
+    amount: number,
+    from: string,
+    target: string,
+    note: string | null,
+  ]
+  const expenses: Example[] = [
+    [0, 38_000, 'Tunai', 'Makan & Minum', 'Nasi padang'],
+    [0, 22_000, 'GoPay', 'Transportasi', 'Ojek ke kantor'],
+    [1, 185_000, 'BCA', 'Belanja', 'Belanja mingguan'],
+    [2, 55_000, 'GoPay', 'Hiburan', 'Nonton'],
+    [3, 450_000, 'BCA', 'Tagihan', 'Listrik'],
+    [5, 100_000, 'BCA', 'Pulsa & Internet', 'Paket data'],
+    [6, 27_000, 'Tunai', 'Makan & Minum', null],
+    [8, 75_000, 'Tunai', 'Sedekah & Donasi', null],
+    [15, 320_000, 'BCA', 'Kesehatan', 'Vitamin & obat'],
+    [20, 60_000, 'Tunai', 'Transportasi', 'Bensin'],
+    [33, 900_000, 'BCA', 'Rumah', 'Perbaikan keran'],
+  ]
+  const incomes: Example[] = [
+    [4, 1_500_000, 'BCA', 'Usaha & Freelance', 'Proyek desain'],
+    [10, 8_500_000, 'BCA', 'Gaji', 'Gaji bulanan'],
+    [40, 8_500_000, 'BCA', 'Gaji', 'Gaji bulanan'],
+  ]
+  const transfers: Example[] = [
+    [1, 200_000, 'BCA', 'GoPay', 'Top up'],
+    [12, 500_000, 'BCA', 'Tunai', 'Tarik tunai'],
+  ]
+
+  const base = (type: Transaction['type'], [daysAgo, amount, from, , note]: Example) => ({
+    id: uuid(),
+    type,
+    amount,
+    accountId: account(from),
+    date: shiftDate(today, -daysAgo),
+    note,
+    // Later in the list = earlier in the day, so same-day entries keep a stable order.
+    createdAt: new Date(Date.now() - daysAgo * 86_400_000 - amount).toISOString(),
+  })
+  const transactions: Transaction[] = [
+    ...expenses.map((e) => ({
+      ...base('expense', e),
+      toAccountId: null,
+      categoryId: category(e[3], 'expense'),
+    })),
+    ...incomes.map((e) => ({
+      ...base('income', e),
+      toAccountId: null,
+      categoryId: category(e[3], 'income'),
+    })),
+    ...transfers.map((e) => ({
+      ...base('transfer', e),
+      toAccountId: account(e[3]),
+      categoryId: null,
+    })),
+  ]
+
+  return { accounts, categories, transactions }
+}
