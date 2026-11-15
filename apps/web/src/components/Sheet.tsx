@@ -98,10 +98,9 @@ export function Sheet({ open, onClose, title, children }: Props) {
       const height = footer?.offsetHeight ?? 0
       dialog.style.setProperty('--sheet-top', `${top.offsetHeight}px`)
       dialog.style.setProperty('--sheet-bottom', `${height}px`)
-      // A notice or error showing up in the footer makes it grow upward over the content: keep
-      // the field being typed in visible above it.
-      if (height > footerHeight) revealFocused(dialog)
+      const grown = height - footerHeight
       footerHeight = height
+      if (footer && grown > 0) revealCovered(dialog, footer.getBoundingClientRect().top, grown)
     }
     update()
     dialog.addEventListener('scroll', update, { passive: true })
@@ -255,11 +254,18 @@ function rememberOpener(dialog: HTMLDialogElement) {
   openers.set(dialog, (leaving && openers.get(leaving)) || active)
 }
 
-/** Scrolls the sheet's focused field into view (not the bars' own buttons, nor a nested sheet's). */
-function revealFocused(dialog: HTMLDialogElement) {
+/**
+ * The footer just grew `grown` px upward over the content (a notice or an error showed up, e.g.
+ * the wallet note on the first digit typed in a debt's amount). If that covers the field being
+ * typed in, which was clear of it before, scroll the field back into view. Nothing else moves: not
+ * a field the user scrolled away from, nor for the bars' own buttons or a nested sheet's field.
+ */
+function revealCovered(dialog: HTMLDialogElement, footerTop: number, grown: number) {
   const active = document.activeElement
   if (!(active instanceof HTMLElement) || active.closest('dialog') !== dialog) return
   if (active.closest('[data-sheet-grab], [data-sheet-footer]')) return
+  const { bottom } = active.getBoundingClientRect()
+  if (bottom <= footerTop + 0.5 || bottom > footerTop + grown + 0.5) return
   active.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 }
 

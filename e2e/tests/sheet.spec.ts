@@ -197,6 +197,28 @@ test('a save that fails in a long form says why right above the pinned "Simpan"'
   await context.setOffline(false)
 })
 
+test('an error showing up in the footer leaves a field scrolled away from where it is', async ({
+  page,
+  context,
+}) => {
+  await openApp(page)
+  await goTo(page, 'Tabungan')
+  await page.getByRole('button', { name: 'Tabungan baru' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Tabungan baru' })
+  await handlePoint(sheet)
+  await sheet.getByRole('textbox', { name: 'Nama tabungan' }).fill('Liburan') // stays focused
+  const end = await sheet.evaluate((d) => {
+    d.scrollTo({ top: d.scrollHeight })
+    return d.scrollTop
+  })
+
+  await context.setOffline(true)
+  await page.keyboard.press('Enter') // saves; the error makes the footer taller
+  await expect(sheet.locator('[data-sheet-footer]').getByRole('alert')).toBeVisible()
+  expect(await sheet.evaluate((d) => d.scrollTop)).toBeGreaterThanOrEqual(end)
+  await context.setOffline(false)
+})
+
 test('why an action failed shows next to its button, not somewhere below', async ({ page }) => {
   await openApp(page)
   await page.getByRole('link', { name: 'Pengaturan akun' }).first().click()
