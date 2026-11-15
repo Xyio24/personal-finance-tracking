@@ -1,5 +1,6 @@
 import { type User, userSchema } from '@finance/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { ApiError, api } from './api'
 import { demoSession, demoUser, isDemo } from './demo'
@@ -24,11 +25,17 @@ export function useMe() {
   })
 }
 
-/** Use inside routes wrapped by <RequireAuth>, where the user is guaranteed to exist. */
+/**
+ * Use inside routes wrapped by <RequireAuth>, where the user is guaranteed to exist. Keeps the
+ * last known user while logging out: the cache is cleared a moment before the login page takes
+ * over, and the page still on screen must not crash in between.
+ */
 export function useCurrentUser(): User {
   const { data } = useMe()
-  if (!data) throw new Error('useCurrentUser must be used inside <RequireAuth>')
-  return data
+  const lastUser = useRef(data)
+  if (data) lastUser.current = data
+  if (!lastUser.current) throw new Error('useCurrentUser must be used inside <RequireAuth>')
+  return lastUser.current
 }
 
 export function useLogout() {
