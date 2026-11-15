@@ -14,6 +14,7 @@ import {
 import { db } from '../db/client'
 import { users } from '../db/schema'
 import { env, isSecureCookie } from '../env'
+import { ensureUserDefaults } from '../services/defaults'
 
 const STATE_COOKIE = 'oauth_state'
 const VERIFIER_COOKIE = 'oauth_code_verifier'
@@ -83,6 +84,7 @@ authRoutes.get('/google/callback', async (c) => {
     .returning({ id: users.id })
   if (!user) throw new Error('User upsert returned no row')
 
+  await ensureUserDefaults(user.id)
   await deleteExpiredSessions()
   const session = await createSession(user.id)
   setSessionCookie(c, session.token, session.expiresAt)
