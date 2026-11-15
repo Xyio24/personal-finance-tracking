@@ -25,6 +25,8 @@ export type ApiErrorCode =
   | 'not_found'
   | 'in_use'
   | 'debt_has_payments'
+  | 'debt_direction_locked'
+  | 'savings_below_withdrawn'
   | 'invalid_account'
   | 'archived_account'
   | 'invalid_category'

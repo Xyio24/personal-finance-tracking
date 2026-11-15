@@ -1,4 +1,9 @@
-import { debtInputSchema, debtUpdateSchema } from '@finance/shared'
+import {
+  cascadeDeleteQuerySchema,
+  debtInputSchema,
+  debtOpeningType,
+  debtUpdateSchema,
+} from '@finance/shared'
 import { and, eq, inArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { db } from '../db/client'
@@ -11,6 +16,18 @@ import { findDebt, listDebts, OPENING_TYPES } from '../services/debts'
  * Hutang (payable) and piutang (receivable). A debt and the transaction that moved its money
  * (if any) are always written together; payments go through /api/transactions.
  */
+
+/** A wallet a debt may newly use: the user's own and still active. */
+async function checkWallet(userId: string, accountId: string) {
+  const [account] = await db
+    .select({ archivedAt: accounts.archivedAt })
+    .from(accounts)
+    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+  if (!account) return 'invalid_account' as const
+  if (account.archivedAt) return 'archived_account' as const
+  return null
+}
+
 export const debtRoutes = new Hono<AuthEnv>()
 
 debtRoutes.use(requireAuth)
@@ -21,14 +38,8 @@ debtRoutes.post('/', validate('json', debtInputSchema), async (c) => {
   const userId = c.get('user').id
   const input = c.req.valid('json')
 
-  if (input.accountId) {
-    const [account] = await db
-      .select({ archivedAt: accounts.archivedAt })
-      .from(accounts)
-      .where(and(eq(accounts.id, input.accountId), eq(accounts.userId, userId)))
-    if (!account) return apiError(c, 'invalid_account', 400)
-    if (account.archivedAt) return apiError(c, 'archived_account', 400)
-  }
+  const walletError = input.accountId && (await checkWallet(userId, input.accountId))
+  if (walletError) return apiError(c, walletError, 400)
 
   const id = await db.transaction(async (tx) => {
     const [row] = await tx
@@ -45,10 +56,9 @@ debtRoutes.post('/', validate('json', debtInputSchema), async (c) => {
       .returning({ id: debts.id })
     if (!row) throw new Error('Debt insert returned no row')
     if (input.accountId) {
-      // Borrowed money lands in the wallet; lent money leaves it.
       await tx.insert(transactions).values({
         userId,
-        type: input.direction === 'payable' ? 'debt_borrow' : 'debt_lend',
+        type: debtOpeningType(input.direction),
         amount: input.amount,
         accountId: input.accountId,
         debtId: row.id,
@@ -64,7 +74,7 @@ debtRoutes.post('/', validate('json', debtInputSchema), async (c) => {
 debtRoutes.patch('/:id', idParam, validate('json', debtUpdateSchema), async (c) => {
   const userId = c.get('user').id
   const { id } = c.req.valid('param')
-  const { writtenOff, note, ...fields } = c.req.valid('json')
+  const { writtenOff, note, accountId, ...fields } = c.req.valid('json')
 
   const existing = await findDebt(userId, id)
   if (!existing) return apiError(c, 'not_found', 404)
@@ -72,6 +82,27 @@ debtRoutes.patch('/:id', idParam, validate('json', debtUpdateSchema), async (c) 
   if (fields.amount !== undefined && fields.amount < existing.paid) {
     return apiError(c, 'debt_below_paid', 400)
   }
+  // Payments are debt_repay or debt_collect by direction, so it is fixed once one exists.
+  if (fields.direction && fields.direction !== existing.direction && existing.paid > 0) {
+    return apiError(c, 'debt_direction_locked', 400)
+  }
+  // A newly picked wallet must be active; the one already used may stay even if archived since.
+  if (accountId && accountId !== existing.accountId) {
+    const walletError = await checkWallet(userId, accountId)
+    if (walletError) return apiError(c, walletError, 400)
+  }
+
+  const opening = {
+    direction: fields.direction ?? existing.direction,
+    amount: fields.amount ?? existing.amount,
+    date: fields.date ?? existing.date,
+    accountId: accountId === undefined ? existing.accountId : accountId,
+  }
+  const openingTouched =
+    fields.direction !== undefined ||
+    fields.amount !== undefined ||
+    fields.date !== undefined ||
+    accountId !== undefined
 
   await db.transaction(async (tx) => {
     await tx
@@ -83,31 +114,53 @@ debtRoutes.patch('/:id', idParam, validate('json', debtUpdateSchema), async (c) 
         updatedAt: new Date(),
       })
       .where(and(eq(debts.id, id), eq(debts.userId, userId)))
-    if (fields.amount !== undefined) {
-      // Keep the opening move in step with the debt.
-      await tx
-        .update(transactions)
-        .set({ amount: fields.amount, updatedAt: new Date() })
-        .where(and(eq(transactions.debtId, id), inArray(transactions.type, [...OPENING_TYPES])))
+    if (!openingTouched) return
+
+    // Keep the opening move (money borrowed into / lent out of a wallet) in step with the debt:
+    // removed when no money moved, created when a wallet is added, updated otherwise.
+    const isOpening = and(
+      eq(transactions.userId, userId),
+      eq(transactions.debtId, id),
+      inArray(transactions.type, [...OPENING_TYPES]),
+    )
+    if (!opening.accountId) {
+      await tx.delete(transactions).where(isOpening)
+      return
     }
+    const values = {
+      type: debtOpeningType(opening.direction),
+      amount: opening.amount,
+      accountId: opening.accountId,
+      date: opening.date,
+    }
+    const [updated] = await tx
+      .update(transactions)
+      .set({ ...values, updatedAt: new Date() })
+      .where(isOpening)
+      .returning({ id: transactions.id })
+    if (!updated) await tx.insert(transactions).values({ ...values, userId, debtId: id })
   })
 
   return c.json(await findDebt(userId, id))
 })
 
-/** Only debts without payments can be deleted (their opening move goes with them). */
-debtRoutes.delete('/:id', idParam, async (c) => {
+/**
+ * Deletes a debt and its opening move. A debt with payments needs ?withTransactions=true, which
+ * deletes the payments too; every wallet balance follows, since balances are never stored.
+ */
+debtRoutes.delete('/:id', idParam, validate('query', cascadeDeleteQuerySchema), async (c) => {
   const userId = c.get('user').id
   const { id } = c.req.valid('param')
+  const { withTransactions = false } = c.req.valid('query')
 
   const existing = await findDebt(userId, id)
   if (!existing) return apiError(c, 'not_found', 404)
-  if (existing.paid > 0) return apiError(c, 'debt_has_payments', 409)
+  if (existing.paid > 0 && !withTransactions) return apiError(c, 'debt_has_payments', 409)
 
   await db.transaction(async (tx) => {
     await tx
       .delete(transactions)
-      .where(and(eq(transactions.debtId, id), inArray(transactions.type, [...OPENING_TYPES])))
+      .where(and(eq(transactions.userId, userId), eq(transactions.debtId, id)))
     await tx.delete(debts).where(and(eq(debts.id, id), eq(debts.userId, userId)))
   })
   return c.body(null, 204)

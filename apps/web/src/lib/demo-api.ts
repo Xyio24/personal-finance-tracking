@@ -4,6 +4,7 @@ import {
   accountUpdateSchema,
   type Category,
   CUSTOM_CATEGORY_SORT,
+  cascadeDeleteQuerySchema,
   categoryInputSchema,
   categoryUpdateSchema,
   computeBalances,
@@ -11,6 +12,7 @@ import {
   DEFAULT_CATEGORIES,
   type Debt,
   debtInputSchema,
+  debtOpeningType,
   debtUpdateSchema,
   defaultCategorySort,
   goalDelta,
@@ -88,8 +90,8 @@ function route(
   if (resource === 'reports' && id === 'monthly' && method === 'GET') {
     return monthlyReport(db, query)
   }
-  if (resource === 'savings') return savingsRoute(db, method, id, body)
-  if (resource === 'debts') return debtsRoute(db, method, id, body)
+  if (resource === 'savings') return savingsRoute(db, method, id, query, body)
+  if (resource === 'debts') return debtsRoute(db, method, id, query, body)
   if (resource === 'export' && id === 'transactions.csv' && method === 'GET') return exportCsv(db)
   throw new ApiError(404, 'not_found')
 }
@@ -335,15 +337,27 @@ function debtsWithTotals(db: Store, excludeTransactionId?: string): Debt[] {
   })
 }
 
-function debtsRoute(db: Store, method: string, id: string | undefined, body: unknown) {
+/** Same rule as the server: a wallet newly picked for a debt must exist and be active. */
+function checkDebtWallet(db: Store, accountId: string) {
+  const account = db.accounts.find((a) => a.id === accountId)
+  if (!account) throw new ApiError(400, 'invalid_account')
+  if (account.archived) throw new ApiError(400, 'archived_account')
+}
+
+const isOpeningOf = (debtId: string) => (t: Transaction) =>
+  t.debtId === debtId && (t.type === 'debt_borrow' || t.type === 'debt_lend')
+
+function debtsRoute(
+  db: Store,
+  method: string,
+  id: string | undefined,
+  query: URLSearchParams,
+  body: unknown,
+) {
   if (!id && method === 'GET') return debtsWithTotals(db)
   if (!id && method === 'POST') {
     const { accountId, ...input } = parse(debtInputSchema, body)
-    if (accountId) {
-      const account = db.accounts.find((a) => a.id === accountId)
-      if (!account) throw new ApiError(400, 'invalid_account')
-      if (account.archived) throw new ApiError(400, 'archived_account')
-    }
+    if (accountId) checkDebtWallet(db, accountId)
     const debt: StoredDebt = {
       ...input,
       note: input.note || null,
@@ -352,52 +366,69 @@ function debtsRoute(db: Store, method: string, id: string | undefined, body: unk
       createdAt: now(),
     }
     db.debts.push(debt)
-    if (accountId) {
-      db.transactions.push({
-        id: uuid(),
-        type: debt.direction === 'payable' ? 'debt_borrow' : 'debt_lend',
-        amount: debt.amount,
-        accountId,
-        toAccountId: null,
-        categoryId: null,
-        goalId: null,
-        debtId: debt.id,
-        date: debt.date,
-        note: null,
-        createdAt: now(),
-      })
-    }
+    if (accountId) db.transactions.push(openingMove(debt, accountId))
     return debtsWithTotals(db).find((d) => d.id === debt.id)
   }
   const debt = find(db.debts, id)
   const current = debtsWithTotals(db).find((d) => d.id === debt.id)
+  const paid = current?.paid ?? 0
   if (method === 'PATCH') {
-    const { writtenOff, note, ...fields } = parse(debtUpdateSchema, body)
-    if (fields.amount !== undefined && fields.amount < (current?.paid ?? 0)) {
+    const { writtenOff, note, accountId, ...fields } = parse(debtUpdateSchema, body)
+    if (fields.amount !== undefined && fields.amount < paid) {
       throw new ApiError(400, 'debt_below_paid')
     }
+    if (fields.direction && fields.direction !== debt.direction && paid > 0) {
+      throw new ApiError(400, 'debt_direction_locked')
+    }
+    const currentWallet = current?.accountId ?? null
+    if (accountId && accountId !== currentWallet) checkDebtWallet(db, accountId)
+
     Object.assign(
       debt,
       fields,
       note === undefined ? {} : { note: note || null },
       writtenOff === undefined ? {} : { writtenOff },
     )
-    if (fields.amount !== undefined) {
-      for (const t of db.transactions) {
-        if (t.debtId === debt.id && (t.type === 'debt_borrow' || t.type === 'debt_lend')) {
-          t.amount = fields.amount
-        }
-      }
+    const openingTouched =
+      fields.direction !== undefined ||
+      fields.amount !== undefined ||
+      fields.date !== undefined ||
+      accountId !== undefined
+    if (openingTouched) {
+      const wallet = accountId === undefined ? currentWallet : accountId
+      const isOpening = isOpeningOf(debt.id)
+      const opening = db.transactions.find(isOpening)
+      if (!wallet) db.transactions = db.transactions.filter((t) => !isOpening(t))
+      else if (opening) Object.assign(opening, openingMove(debt, wallet), { id: opening.id })
+      else db.transactions.push(openingMove(debt, wallet))
     }
     return debtsWithTotals(db).find((d) => d.id === debt.id)
   }
   if (method === 'DELETE') {
-    if ((current?.paid ?? 0) > 0) throw new ApiError(409, 'debt_has_payments')
+    const { withTransactions = false } = parse(cascadeDeleteQuerySchema, Object.fromEntries(query))
+    if (paid > 0 && !withTransactions) throw new ApiError(409, 'debt_has_payments')
     db.transactions = db.transactions.filter((t) => t.debtId !== debt.id)
     db.debts = db.debts.filter((d) => d.id !== debt.id)
     return undefined
   }
   throw new ApiError(404, 'not_found')
+}
+
+/** The move that put borrowed money into a wallet or took lent money out of it. */
+function openingMove(debt: StoredDebt, accountId: string): Transaction {
+  return {
+    id: uuid(),
+    type: debtOpeningType(debt.direction),
+    amount: debt.amount,
+    accountId,
+    toAccountId: null,
+    categoryId: null,
+    goalId: null,
+    debtId: debt.id,
+    date: debt.date,
+    note: null,
+    createdAt: now(),
+  }
 }
 
 // Savings goals
@@ -414,7 +445,13 @@ function goalsWithBalances(db: Store): SavingsGoal[] {
   }))
 }
 
-function savingsRoute(db: Store, method: string, id: string | undefined, body: unknown) {
+function savingsRoute(
+  db: Store,
+  method: string,
+  id: string | undefined,
+  query: URLSearchParams,
+  body: unknown,
+) {
   if (!id && method === 'GET') return goalsWithBalances(db)
   if (!id && method === 'POST') {
     const goal = { ...parse(goalInputSchema, body), id: uuid(), archived: false, createdAt: now() }
@@ -424,11 +461,24 @@ function savingsRoute(db: Store, method: string, id: string | undefined, body: u
   const goal = find(db.goals, id)
   if (method === 'PATCH') {
     const { archived, ...fields } = parse(goalUpdateSchema, body)
+    const balance = goalsWithBalances(db).find((g) => g.id === goal.id)?.balance ?? 0
+    const moves = balance - goal.initialAmount
+    if (
+      fields.initialAmount !== undefined &&
+      fields.initialAmount < goal.initialAmount &&
+      fields.initialAmount + moves < 0
+    ) {
+      throw new ApiError(400, 'savings_below_withdrawn')
+    }
     Object.assign(goal, fields, archived === undefined ? {} : { archived })
     return goalsWithBalances(db).find((g) => g.id === goal.id)
   }
   if (method === 'DELETE') {
-    if (db.transactions.some((t) => t.goalId === id)) throw new ApiError(409, 'in_use')
+    const { withTransactions = false } = parse(cascadeDeleteQuerySchema, Object.fromEntries(query))
+    if (!withTransactions && db.transactions.some((t) => t.goalId === id)) {
+      throw new ApiError(409, 'in_use')
+    }
+    db.transactions = db.transactions.filter((t) => t.goalId !== id)
     db.goals = db.goals.filter((g) => g.id !== id)
     return undefined
   }

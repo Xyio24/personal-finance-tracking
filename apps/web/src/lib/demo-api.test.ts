@@ -226,3 +226,108 @@ describe('demo export', () => {
     expect([...dates].sort().reverse()).toEqual(dates)
   })
 })
+
+describe('demo API corrections and deletes', () => {
+  const debts = () => demoRequest<Debt[]>('/debts')
+  const balanceSum = async () =>
+    (await demoRequest<Account[]>('/accounts')).reduce((sum, a) => sum + a.balance, 0)
+  const refusedWith = (code: string) => (e: unknown) => e instanceof ApiError && e.message === code
+
+  it('deletes a debt with its payments only when asked, and wallets follow', async () => {
+    const budi = (await debts()).find((d) => d.person === 'Budi')
+    if (!budi?.accountId || budi.paid === 0) throw new Error('seed: Budi lent from a wallet, paid')
+    const before = await balanceSum()
+
+    await expect(demoRequest(`/debts/${budi.id}`, { method: 'DELETE' })).rejects.toSatisfy(
+      refusedWith('debt_has_payments'),
+    )
+    await demoRequest(`/debts/${budi.id}?withTransactions=true`, { method: 'DELETE' })
+
+    expect((await debts()).some((d) => d.id === budi.id)).toBe(false)
+    expect(await demoRequest(`/transactions?debtId=${budi.id}`)).toEqual([])
+    // The lent money comes back to the wallet, minus what Budi had already returned.
+    expect(await balanceSum()).toBe(before + budi.amount - budi.paid)
+  })
+
+  it('corrects the date, wallet and direction of a debt', async () => {
+    const { cash, gopay } = await lookups()
+    const debt = await post<Debt>('/debts', {
+      direction: 'receivable',
+      person: 'Uji',
+      amount: 100_000,
+      date: '2026-11-10',
+      dueDate: null,
+      note: null,
+      accountId: cash.id,
+    })
+    const opening = async () =>
+      (await demoRequest<Transaction[]>(`/transactions?debtId=${debt.id}`)).find(
+        (t) => t.type === 'debt_borrow' || t.type === 'debt_lend',
+      )
+
+    const fixed = await demoRequest<Debt>(`/debts/${debt.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ direction: 'payable', accountId: gopay.id, date: '2026-11-01' }),
+    })
+    expect(fixed).toMatchObject({ direction: 'payable', accountId: gopay.id, date: '2026-11-01' })
+    expect(await opening()).toMatchObject({
+      type: 'debt_borrow',
+      accountId: gopay.id,
+      date: '2026-11-01',
+    })
+
+    await demoRequest(`/debts/${debt.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ accountId: null }),
+    })
+    expect(await opening()).toBeUndefined()
+  })
+
+  it('locks the direction once something is paid', async () => {
+    const budi = (await debts()).find((d) => d.person === 'Budi')
+    await expect(
+      demoRequest(`/debts/${budi?.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ direction: 'payable' }),
+      }),
+    ).rejects.toSatisfy(refusedWith('debt_direction_locked'))
+  })
+
+  it('deletes a goal with its isi and culik only when asked', async () => {
+    const goals = await demoRequest<SavingsGoal[]>('/savings')
+    const used = goals.find((g) => g.name === 'Dana Darurat')
+    await expect(demoRequest(`/savings/${used?.id}`, { method: 'DELETE' })).rejects.toSatisfy(
+      refusedWith('in_use'),
+    )
+    await demoRequest(`/savings/${used?.id}?withTransactions=true`, { method: 'DELETE' })
+    expect((await demoRequest<SavingsGoal[]>('/savings')).some((g) => g.id === used?.id)).toBe(
+      false,
+    )
+    expect(await demoRequest(`/transactions?goalId=${used?.id}`)).toEqual([])
+  })
+
+  it('never lets lowering the starting amount push a goal below zero', async () => {
+    const { cash } = await lookups()
+    const goal = await post<SavingsGoal>('/savings', {
+      name: 'Uji',
+      icon: 'piggy-bank',
+      color: 'emerald',
+      targetAmount: null,
+      deadline: null,
+      initialAmount: 1_000_000,
+    })
+    await post('/transactions', {
+      type: 'saving_withdrawal',
+      amount: 800_000,
+      accountId: cash.id,
+      goalId: goal.id,
+      date: '2026-11-10',
+    })
+    await expect(
+      demoRequest(`/savings/${goal.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ initialAmount: 0 }),
+      }),
+    ).rejects.toSatisfy(refusedWith('savings_below_withdrawn'))
+  })
+})

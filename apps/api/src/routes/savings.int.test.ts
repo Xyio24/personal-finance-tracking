@@ -138,6 +138,46 @@ describe('savings goals', () => {
     expect((await client.del(`/savings/${goal.id}`)).status).toBe(409)
   })
 
+  it('deletes a goal with its isi and culik only when asked, and wallets follow', async () => {
+    const { client, bank, goal } = await setup()
+    await move(client, 'saving_deposit', bank.id, goal.id, 2_000_000)
+    await move(client, 'saving_withdrawal', bank.id, goal.id, 500_000)
+    const { body: other } = await client.post<SavingsGoal>('/savings', { ...trip, name: 'Laptop' })
+    await move(client, 'saving_deposit', bank.id, other.id, 300_000)
+    expect(await walletOf(client, bank.id)).toBe(5_000_000 - 2_000_000 + 500_000 - 300_000)
+
+    expect(await client.del(`/savings/${goal.id}`)).toMatchObject({
+      status: 409,
+      body: { error: 'in_use' },
+    })
+    expect((await client.del(`/savings/${goal.id}?withTransactions=true`)).status).toBe(204)
+
+    expect((await goalsOf(client)).map((g) => g.id)).toEqual([other.id])
+    expect((await client.get(`/transactions?goalId=${goal.id}`)).body).toEqual([])
+    // Only the other goal's 300 rb is still out of the wallet.
+    expect(await walletOf(client, bank.id)).toBe(4_700_000)
+  })
+
+  it('never lets lowering the starting amount push a goal below zero', async () => {
+    const { client, bank, goal } = await setup() // starts with 1 jt
+    await move(client, 'saving_withdrawal', bank.id, goal.id, 800_000)
+
+    expect(await client.patch(`/savings/${goal.id}`, { initialAmount: 0 })).toMatchObject({
+      status: 400,
+      body: { error: 'savings_below_withdrawn' },
+    })
+    const lowered = await client.patch<SavingsGoal>(`/savings/${goal.id}`, {
+      initialAmount: 800_000,
+    })
+    expect(lowered.body).toMatchObject({ initialAmount: 800_000, balance: 0 })
+    // Saving the form again with the same amount, or renaming, is always fine.
+    const renamed = await client.patch<SavingsGoal>(`/savings/${goal.id}`, {
+      name: 'Bali',
+      initialAmount: 800_000,
+    })
+    expect(renamed.body).toMatchObject({ name: 'Bali', balance: 0 })
+  })
+
   it('reports a recent saving pace and leaves income/expense reports alone', async () => {
     const { client, bank, goal } = await setup()
     const today = toDateKey(new Date())
@@ -162,11 +202,14 @@ describe('savings goals', () => {
   })
 
   it("keeps each user's goals private", async () => {
-    const { goal } = await setup()
+    const owner = await setup()
+    const { goal } = owner
     const other = await setup('second@example.com')
     expect((await goalsOf(other.client)).map((g) => g.id)).toEqual([other.goal.id])
     expect((await other.client.patch(`/savings/${goal.id}`, { name: 'x' })).status).toBe(404)
     expect((await other.client.del(`/savings/${goal.id}`)).status).toBe(404)
+    expect((await other.client.del(`/savings/${goal.id}?withTransactions=true`)).status).toBe(404)
+    expect(await goalsOf(owner.client)).toHaveLength(1)
     expect((await other.client.get(`/transactions?goalId=${goal.id}`)).body).toEqual([])
   })
 })

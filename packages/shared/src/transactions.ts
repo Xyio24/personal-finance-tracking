@@ -104,6 +104,16 @@ export const transactionListQuerySchema = z
   )
 export type TransactionListQuery = z.infer<typeof transactionListQuerySchema>
 
+/**
+ * DELETE /api/debts/:id and /api/savings/:id. Without withTransactions=true, a debt with
+ * payments or a goal with isi/culik is refused (409); with it, those transactions are deleted
+ * too and every wallet balance is recomputed. Opt-in, so a client that only promised "this one
+ * record" in its confirmation can never remove more.
+ */
+export const cascadeDeleteQuerySchema = z.object({
+  withTransactions: z.stringbool().optional(),
+})
+
 export type TransactionFilters = Pick<
   TransactionListQuery,
   'type' | 'categoryId' | 'accountId' | 'goalId' | 'debtId'

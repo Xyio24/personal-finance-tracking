@@ -154,6 +154,100 @@ describe('debts', () => {
     expect(await walletOf(client, bank.id)).toBe(5_000_000 - 1_500_000 + 100_000)
   })
 
+  it('deletes a debt with its payments only when asked, and wallets follow', async () => {
+    const { client, bank } = await setup()
+    const { body: debt } = await lend(client, bank.id)
+    await pay(client, 'debt_collect', debt.id, bank.id, 400_000)
+    await pay(client, 'debt_collect', debt.id, bank.id, 100_000)
+    const { body: other } = await lend(client, bank.id, 200_000)
+    expect(await walletOf(client, bank.id)).toBe(5_000_000 - 1_500_000 + 500_000 - 200_000)
+
+    expect((await client.del(`/debts/${debt.id}?withTransactions=false`)).status).toBe(409)
+    expect((await client.del(`/debts/${debt.id}?withTransactions=true`)).status).toBe(204)
+
+    expect((await client.get<Debt[]>('/debts')).body.map((d) => d.id)).toEqual([other.id])
+    expect((await client.get<Transaction[]>(`/transactions?debtId=${debt.id}`)).body).toEqual([])
+    // Only the other debt's 200 rb is still out of the wallet.
+    expect(await walletOf(client, bank.id)).toBe(4_800_000)
+  })
+
+  it('corrects the date, wallet and direction, keeping the opening move in step', async () => {
+    const { client, bank } = await setup()
+    const { body: cash } = await client.post<Account>('/accounts', {
+      name: 'Tunai',
+      type: 'cash',
+      initialBalance: 2_000_000,
+    })
+    const { body: debt } = await lend(client, bank.id)
+    const opening = async () =>
+      (await client.get<Transaction[]>(`/transactions?debtId=${debt.id}`)).body.find(
+        (t) => t.type === 'debt_borrow' || t.type === 'debt_lend',
+      )
+
+    // Lent from the wrong wallet, on the wrong day
+    const moved = await client.patch<Debt>(`/debts/${debt.id}`, {
+      accountId: cash.id,
+      date: '2026-10-20',
+    })
+    expect(moved.body).toMatchObject({ accountId: cash.id, date: '2026-10-20' })
+    expect(await opening()).toMatchObject({
+      type: 'debt_lend',
+      accountId: cash.id,
+      date: '2026-10-20',
+    })
+    expect(await walletOf(client, bank.id)).toBe(5_000_000)
+    expect(await walletOf(client, cash.id)).toBe(500_000)
+
+    // It was actually borrowed, not lent
+    const flipped = await client.patch<Debt>(`/debts/${debt.id}`, { direction: 'payable' })
+    expect(flipped.body.direction).toBe('payable')
+    expect((await opening())?.type).toBe('debt_borrow')
+    expect(await walletOf(client, cash.id)).toBe(3_500_000)
+
+    // No money moved after all (e.g. paylater), then it did after all
+    const noWallet = await client.patch<Debt>(`/debts/${debt.id}`, { accountId: null })
+    expect(noWallet.body.accountId).toBeNull()
+    expect(await opening()).toBeUndefined()
+    expect(await walletOf(client, cash.id)).toBe(2_000_000)
+    await client.patch(`/debts/${debt.id}`, { accountId: bank.id, amount: 1_000_000 })
+    expect(await opening()).toMatchObject({
+      type: 'debt_borrow',
+      amount: 1_000_000,
+      date: '2026-10-20',
+    })
+    expect(await walletOf(client, bank.id)).toBe(6_000_000)
+  })
+
+  it('locks the direction once paid and only accepts active wallets of the user', async () => {
+    const { client, bank } = await setup()
+    const { body: debt } = await lend(client, bank.id)
+    await pay(client, 'debt_collect', debt.id, bank.id, 100_000)
+    expect(await client.patch(`/debts/${debt.id}`, { direction: 'payable' })).toMatchObject({
+      status: 400,
+      body: { error: 'debt_direction_locked' },
+    })
+    // Same direction is not a change
+    expect((await client.patch(`/debts/${debt.id}`, { direction: 'receivable' })).status).toBe(200)
+
+    // The wallet it already uses may stay after being archived; a new one must be active.
+    await client.patch(`/accounts/${bank.id}`, { archived: true })
+    expect(
+      (await client.patch(`/debts/${debt.id}`, { accountId: bank.id, note: 'x' })).status,
+    ).toBe(200)
+    const { body: noWallet } = await lend(client, null, 50_000)
+    expect(await client.patch(`/debts/${noWallet.id}`, { accountId: bank.id })).toMatchObject({
+      status: 400,
+      body: { error: 'archived_account' },
+    })
+    const other = await setup('second@example.com')
+    expect(await client.patch(`/debts/${noWallet.id}`, { accountId: other.bank.id })).toMatchObject(
+      {
+        status: 400,
+        body: { error: 'invalid_account' },
+      },
+    )
+  })
+
   it('only lets the debt change its opening move', async () => {
     const { client, bank } = await setup()
     const { body: debt } = await lend(client, bank.id)
@@ -192,6 +286,8 @@ describe('debts', () => {
     expect((await other.client.get<Debt[]>('/debts')).body).toEqual([])
     expect((await other.client.patch(`/debts/${debt.id}`, { person: 'x' })).status).toBe(404)
     expect((await other.client.del(`/debts/${debt.id}`)).status).toBe(404)
+    expect((await other.client.del(`/debts/${debt.id}?withTransactions=true`)).status).toBe(404)
+    expect((await owner.client.get<Debt[]>('/debts')).body).toHaveLength(1)
     expect((await pay(other.client, 'debt_collect', debt.id, other.bank.id, 1)).body).toEqual({
       error: 'invalid_debt',
     })

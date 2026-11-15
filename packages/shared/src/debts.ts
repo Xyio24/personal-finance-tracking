@@ -6,6 +6,10 @@ import { MAX_AMOUNT } from './money'
 export const DEBT_DIRECTIONS = ['payable', 'receivable'] as const
 export type DebtDirection = (typeof DEBT_DIRECTIONS)[number]
 
+/** Borrowed money lands in a wallet (debt_borrow); lent money leaves it (debt_lend). */
+export const debtOpeningType = (direction: DebtDirection) =>
+  direction === 'payable' ? ('debt_borrow' as const) : ('debt_lend' as const)
+
 /** Due within this many days counts as "jatuh tempo sebentar lagi". */
 export const DUE_SOON_DAYS = 7
 
@@ -30,9 +34,21 @@ export const debtInputSchema = z.object({
 })
 export type DebtInput = z.infer<typeof debtInputSchema>
 
-/** PATCH /api/debts/:id. The direction and the opening wallet are fixed once created. */
+/**
+ * PATCH /api/debts/:id. Every field can be corrected; the opening move (money borrowed or lent)
+ * follows the debt's direction, amount, date and wallet. The direction can only change while
+ * nothing has been paid yet.
+ */
 export const debtUpdateSchema = z
-  .object({ person, amount, dueDate: z.iso.date().nullable(), note })
+  .object({
+    direction: z.enum(DEBT_DIRECTIONS),
+    person,
+    amount,
+    date: z.iso.date(),
+    dueDate: z.iso.date().nullable(),
+    note,
+    accountId: z.uuid().nullable(),
+  })
   .partial()
   .extend({
     /** "Ikhlaskan" (piutang) / "Dianggap lunas" (hutang): settle what is left without money. */
