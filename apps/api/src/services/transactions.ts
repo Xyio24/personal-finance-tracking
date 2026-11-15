@@ -1,8 +1,9 @@
 import type { TransactionInput } from '@finance/shared'
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../db/client'
-import { accounts, categories, savingsGoals, type TransactionRow } from '../db/schema'
+import { accounts, categories, debts, savingsGoals, type TransactionRow } from '../db/schema'
 import type { ApiErrorCode } from '../lib/validate'
+import { debtRemaining } from './debts'
 import { goalBalance } from './savings'
 
 /**
@@ -35,10 +36,15 @@ export function toTransactionValues(input: TransactionInput) {
     categoryId: input.type === 'income' || input.type === 'expense' ? input.categoryId : null,
     goalId:
       input.type === 'saving_deposit' || input.type === 'saving_withdrawal' ? input.goalId : null,
+    debtId: input.type === 'debt_repay' || input.type === 'debt_collect' ? input.debtId : null,
     date: input.date,
     note: input.note || null,
   }
 }
+
+/** Debt openings change only together with their debt, through /api/debts. */
+export const isDebtOpening = (row: TransactionRow) =>
+  row.type === 'debt_borrow' || row.type === 'debt_lend'
 
 /**
  * Checks that the wallets, category and savings goal belong to the user and fit the
@@ -84,6 +90,18 @@ export async function checkReferences(
       const available = await goalBalance(goal.id, existing?.id)
       if (input.amount > available) return 'insufficient_savings'
     }
+  }
+
+  if (input.type === 'debt_repay' || input.type === 'debt_collect') {
+    const [debt] = await db
+      .select({ id: debts.id, direction: debts.direction, writtenOffAt: debts.writtenOffAt })
+      .from(debts)
+      .where(and(eq(debts.userId, userId), eq(debts.id, input.debtId)))
+    // A hutang is repaid, a piutang is collected: the payment must match the direction.
+    const expected = debt?.direction === 'payable' ? 'debt_repay' : 'debt_collect'
+    if (!debt || input.type !== expected) return 'invalid_debt'
+    if (debt.writtenOffAt && debt.id !== existing?.debtId) return 'debt_closed'
+    if (input.amount > (await debtRemaining(debt.id, existing?.id))) return 'debt_overpaid'
   }
 
   return null

@@ -32,6 +32,11 @@ export type ApiErrorCode =
   | 'archived_goal'
   | 'insufficient_savings'
   | 'savings_already_used'
+  | 'invalid_debt'
+  | 'debt_closed'
+  | 'debt_overpaid'
+  | 'debt_below_paid'
+  | 'managed_by_debt'
 
 export function apiError(c: Context, error: ApiErrorCode, status: 400 | 404 | 409) {
   return c.json({ error }, status)

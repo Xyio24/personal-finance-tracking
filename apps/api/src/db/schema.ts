@@ -1,4 +1,4 @@
-import { ACCOUNT_TYPES, CATEGORY_TYPES, TRANSACTION_TYPES } from '@finance/shared'
+import { ACCOUNT_TYPES, CATEGORY_TYPES, DEBT_DIRECTIONS, TRANSACTION_TYPES } from '@finance/shared'
 import { sql } from 'drizzle-orm'
 import {
   bigint,
@@ -114,6 +114,36 @@ export const savingsGoals = pgTable(
   ],
 )
 
+export const debtDirection = pgEnum('debt_direction', DEBT_DIRECTIONS)
+
+/**
+ * Debts: "hutang" (payable, you owe) and "piutang" (receivable, you are owed). What has been
+ * paid and what is left are computed from the payment transactions, never stored.
+ */
+export const debts = pgTable(
+  'debts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    direction: debtDirection('direction').notNull(),
+    person: text('person').notNull(),
+    amount: rupiah('amount').notNull(),
+    /** When the money was borrowed or lent (local date). */
+    date: date('date', { mode: 'string' }).notNull(),
+    dueDate: date('due_date', { mode: 'string' }),
+    note: text('note'),
+    /** "Ikhlaskan" / "Dianggap lunas": what was left is no longer expected. */
+    writtenOffAt: timestamp('written_off_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index('debts_user_id_idx').on(table.userId),
+    check('debts_amount_positive', sql`${table.amount} > 0`),
+  ],
+)
+
 export const transactions = pgTable(
   'transactions',
   {
@@ -136,6 +166,8 @@ export const transactions = pgTable(
     categoryId: uuid('category_id').references(() => categories.id),
     /** Savings deposits and withdrawals only. */
     goalId: uuid('goal_id').references(() => savingsGoals.id),
+    /** Debt openings and payments only. */
+    debtId: uuid('debt_id').references(() => debts.id),
     /** Local calendar date chosen by the user (no time zone). */
     date: date('date', { mode: 'string' }).notNull(),
     note: text('note'),
@@ -147,15 +179,17 @@ export const transactions = pgTable(
     index('transactions_to_account_idx').on(table.toAccountId),
     index('transactions_category_idx').on(table.categoryId),
     index('transactions_goal_idx').on(table.goalId),
+    index('transactions_debt_idx').on(table.debtId),
     check('transactions_amount_positive', sql`${table.amount} > 0`),
     // The database itself refuses half-filled rows, whatever the API does. The type is
     // compared as text: migrations run in one transaction, and a freshly added enum value
     // cannot be used as an enum inside the transaction that adds it.
     check(
       'transactions_shape',
-      sql`(${table.type}::text = 'transfer' and ${table.toAccountId} is not null and ${table.categoryId} is null and ${table.goalId} is null and ${table.toAccountId} <> ${table.accountId})
-        or (${table.type}::text in ('income', 'expense') and ${table.toAccountId} is null and ${table.categoryId} is not null and ${table.goalId} is null)
-        or (${table.type}::text in ('saving_deposit', 'saving_withdrawal') and ${table.toAccountId} is null and ${table.categoryId} is null and ${table.goalId} is not null)`,
+      sql`(${table.type}::text = 'transfer' and ${table.toAccountId} is not null and ${table.categoryId} is null and ${table.goalId} is null and ${table.debtId} is null and ${table.toAccountId} <> ${table.accountId})
+        or (${table.type}::text in ('income', 'expense') and ${table.categoryId} is not null and ${table.toAccountId} is null and ${table.goalId} is null and ${table.debtId} is null)
+        or (${table.type}::text in ('saving_deposit', 'saving_withdrawal') and ${table.goalId} is not null and ${table.toAccountId} is null and ${table.categoryId} is null and ${table.debtId} is null)
+        or (${table.type}::text in ('debt_borrow', 'debt_lend', 'debt_repay', 'debt_collect') and ${table.debtId} is not null and ${table.toAccountId} is null and ${table.categoryId} is null and ${table.goalId} is null)`,
     ),
   ],
 )
@@ -166,3 +200,4 @@ export type AccountRow = typeof accounts.$inferSelect
 export type CategoryRow = typeof categories.$inferSelect
 export type TransactionRow = typeof transactions.$inferSelect
 export type SavingsGoalRow = typeof savingsGoals.$inferSelect
+export type DebtRow = typeof debts.$inferSelect

@@ -1,13 +1,16 @@
-import type { Transaction } from './transactions'
+import { type Transaction, type TransactionType, WALLET_INFLOW_TYPES } from './transactions'
 
 type BalanceTransaction = Pick<Transaction, 'type' | 'amount' | 'accountId' | 'toAccountId'>
+
+const inflows: ReadonlySet<TransactionType> = new Set(WALLET_INFLOW_TYPES)
 
 /** How a transaction changes one wallet's balance. */
 export function balanceDelta(t: BalanceTransaction, accountId: string): number {
   let delta = 0
   if (t.accountId === accountId) {
-    // Money arrives in the wallet with income and with a withdrawal from savings ("culik").
-    delta += t.type === 'income' || t.type === 'saving_withdrawal' ? t.amount : -t.amount
+    // Income, a "culik" from savings, borrowed money and a repaid "piutang" arrive in the
+    // wallet; everything else leaves it.
+    delta += inflows.has(t.type) ? t.amount : -t.amount
   }
   if (t.type === 'transfer' && t.toAccountId === accountId) delta += t.amount
   return delta
@@ -49,8 +52,8 @@ export function computeGoalBalances(
 }
 
 /**
- * Income and expense of a list of transactions. Transfers and savings deposits/withdrawals
- * only move money around and count as neither.
+ * Income and expense of a list of transactions. Transfers, savings moves and debt moves only
+ * shift money around and count as neither.
  */
 export function summarize(transactions: readonly Pick<Transaction, 'type' | 'amount'>[]) {
   let income = 0

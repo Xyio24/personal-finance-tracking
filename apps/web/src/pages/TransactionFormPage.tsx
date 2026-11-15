@@ -1,6 +1,7 @@
 import {
   type Account,
   type Category,
+  isDebtType,
   isSavingsType,
   type Transaction,
   type TransactionInput,
@@ -62,6 +63,10 @@ export function TransactionFormPage() {
   // Savings entries are managed on their goal's page.
   if (transaction.data && isSavingsType(transaction.data.type)) {
     return <Navigate to={`/tabungan/${transaction.data.goalId}`} replace />
+  }
+  // Debt openings and payments are managed on the debt's page.
+  if (transaction.data && isDebtType(transaction.data.type)) {
+    return <Navigate to={`/hutang/${transaction.data.debtId}`} replace />
   }
 
   const requested = params.get('type') as FormType | null

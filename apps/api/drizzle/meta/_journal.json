@@ -22,6 +22,13 @@
       "when": 1794732856500,
       "tag": "0002_savings_goals",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794734302480,
+      "tag": "0003_debts",
+      "breakpoints": true
     }
   ]
 }

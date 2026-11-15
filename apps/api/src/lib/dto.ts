@@ -3,10 +3,29 @@ import type {
   Category,
   CategoryColor,
   CategoryIcon,
+  Debt,
   SavingsGoal,
   Transaction,
 } from '@finance/shared'
-import type { AccountRow, CategoryRow, SavingsGoalRow, TransactionRow } from '../db/schema'
+import type { AccountRow, CategoryRow, DebtRow, SavingsGoalRow, TransactionRow } from '../db/schema'
+
+export function toDebt(row: DebtRow, paid: number, accountId: string | null): Debt {
+  const writtenOff = row.writtenOffAt !== null
+  return {
+    id: row.id,
+    direction: row.direction,
+    person: row.person,
+    amount: row.amount,
+    paid,
+    remaining: writtenOff ? 0 : Math.max(row.amount - paid, 0),
+    date: row.date,
+    dueDate: row.dueDate,
+    note: row.note,
+    accountId,
+    writtenOff,
+    createdAt: row.createdAt.toISOString(),
+  }
+}
 
 // Database rows -> the JSON shapes in @finance/shared. Internal columns (user_id, sort order,
 // timestamps nobody needs) stay on the server.
@@ -45,6 +64,7 @@ export function toTransaction(row: TransactionRow): Transaction {
     toAccountId: row.toAccountId,
     categoryId: row.categoryId,
     goalId: row.goalId,
+    debtId: row.debtId,
     date: row.date,
     note: row.note,
     createdAt: row.createdAt.toISOString(),

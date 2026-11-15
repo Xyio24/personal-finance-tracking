@@ -166,4 +166,16 @@ export const transactionTypes: Record<
     amountClass: 'text-slate-600 dark:text-slate-300',
     sign: '',
   },
+  debt_borrow: { label: 'Pinjam', amountClass: 'text-slate-600 dark:text-slate-300', sign: '' },
+  debt_lend: { label: 'Pinjamkan', amountClass: 'text-slate-600 dark:text-slate-300', sign: '' },
+  debt_repay: {
+    label: 'Bayar hutang',
+    amountClass: 'text-slate-600 dark:text-slate-300',
+    sign: '',
+  },
+  debt_collect: {
+    label: 'Terima piutang',
+    amountClass: 'text-slate-600 dark:text-slate-300',
+    sign: '',
+  },
 }

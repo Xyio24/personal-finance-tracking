@@ -7,11 +7,16 @@ import {
 import { and, desc, eq, gte, ilike, lt, or, type SQL } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { db } from '../db/client'
-import { categories, savingsGoals, transactions } from '../db/schema'
+import { categories, debts, savingsGoals, transactions } from '../db/schema'
 import { toTransaction } from '../lib/dto'
 import { apiError, idParam, validate } from '../lib/validate'
 import { type AuthEnv, requireAuth } from '../middleware/auth'
-import { checkReferences, keepsGoalPositive, toTransactionValues } from '../services/transactions'
+import {
+  checkReferences,
+  isDebtOpening,
+  keepsGoalPositive,
+  toTransactionValues,
+} from '../services/transactions'
 
 export const transactionRoutes = new Hono<AuthEnv>()
 
@@ -22,11 +27,11 @@ const likeEscape = (text: string) => text.replace(/[\\%_]/g, (char) => `\\${char
 
 /**
  * Newest first. One month (?month=YYYY-MM), a search across all months (?q=…, at most
- * SEARCH_LIMIT rows) or one savings goal's history (?goalId=…); ?type, ?categoryId,
- * ?accountId and ?goalId narrow any of them.
+ * SEARCH_LIMIT rows), or the history of a savings goal (?goalId=…) or a debt (?debtId=…);
+ * ?type, ?categoryId, ?accountId, ?goalId and ?debtId narrow any of them.
  */
 transactionRoutes.get('/', validate('query', transactionListQuerySchema), async (c) => {
-  const { month, q, type, categoryId, accountId, goalId } = c.req.valid('query')
+  const { month, q, type, categoryId, accountId, goalId, debtId } = c.req.valid('query')
 
   const conditions: (SQL | undefined)[] = [eq(transactions.userId, c.get('user').id)]
   if (month) {
@@ -36,6 +41,7 @@ transactionRoutes.get('/', validate('query', transactionListQuerySchema), async 
   if (type) conditions.push(eq(transactions.type, type))
   if (categoryId) conditions.push(eq(transactions.categoryId, categoryId))
   if (goalId) conditions.push(eq(transactions.goalId, goalId))
+  if (debtId) conditions.push(eq(transactions.debtId, debtId))
   if (accountId) {
     conditions.push(
       or(eq(transactions.accountId, accountId), eq(transactions.toAccountId, accountId)),
@@ -48,6 +54,7 @@ transactionRoutes.get('/', validate('query', transactionListQuerySchema), async 
         ilike(transactions.note, pattern),
         ilike(categories.name, pattern),
         ilike(savingsGoals.name, pattern),
+        ilike(debts.person, pattern),
       ),
     )
   }
@@ -57,10 +64,11 @@ transactionRoutes.get('/', validate('query', transactionListQuerySchema), async 
     .from(transactions)
     .leftJoin(categories, eq(categories.id, transactions.categoryId))
     .leftJoin(savingsGoals, eq(savingsGoals.id, transactions.goalId))
+    .leftJoin(debts, eq(debts.id, transactions.debtId))
     .where(and(...conditions))
     .orderBy(desc(transactions.date), desc(transactions.createdAt))
-    // A month or a goal history is complete; a free-text search returns the newest matches.
-    .limit(month || (goalId && !q) ? 10_000 : SEARCH_LIMIT)
+    // A month or a goal/debt history is complete; a free-text search returns the newest matches.
+    .limit(month || ((goalId || debtId) && !q) ? 10_000 : SEARCH_LIMIT)
   return c.json(rows.map((row) => toTransaction(row.transaction)))
 })
 
@@ -92,6 +100,7 @@ transactionRoutes.put('/:id', idParam, validate('json', transactionInputSchema),
 
   const existing = await findOwn(userId, id)
   if (!existing) return apiError(c, 'not_found', 404)
+  if (isDebtOpening(existing)) return apiError(c, 'managed_by_debt', 400)
 
   const problem = await checkReferences(userId, input, existing)
   if (problem) return apiError(c, problem, 400)
@@ -112,6 +121,7 @@ transactionRoutes.delete('/:id', idParam, async (c) => {
   const userId = c.get('user').id
   const existing = await findOwn(userId, c.req.valid('param').id)
   if (!existing) return apiError(c, 'not_found', 404)
+  if (isDebtOpening(existing)) return apiError(c, 'managed_by_debt', 400)
   if (!(await keepsGoalPositive(existing))) return apiError(c, 'savings_already_used', 400)
 
   await db

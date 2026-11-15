@@ -1,20 +1,21 @@
-import type { Account } from '@finance/shared'
-import { and, asc, eq, or, sql } from 'drizzle-orm'
+import { type Account, WALLET_INFLOW_TYPES } from '@finance/shared'
+import { and, asc, eq, inArray, or, sql } from 'drizzle-orm'
 import { db } from '../db/client'
 import { accounts, transactions } from '../db/schema'
 import { toAccount } from '../lib/dto'
 
 /**
- * Every account of a user with its current balance, computed in one query:
- * initial balance + income - expenses - transfers out + transfers in - money put into savings
- * + money taken back out of savings.
+ * Every account of a user with its current balance, computed in one query: the initial
+ * balance, plus money arriving (income, "culik" from savings, borrowed money, a "piutang"
+ * paid back), minus money leaving (expenses, savings deposits, money lent, a "hutang" paid),
+ * plus or minus transfers.
  */
 export async function listAccounts(userId: string): Promise<Account[]> {
   // A transfer joins twice (once per side); each case only counts the side it belongs to.
   const delta = sql<number>`coalesce(sum(
       case
         when ${transactions.accountId} = ${accounts.id}
-          and ${transactions.type} in ('income', 'saving_withdrawal') then ${transactions.amount}
+          and ${inArray(transactions.type, [...WALLET_INFLOW_TYPES])} then ${transactions.amount}
         when ${transactions.accountId} = ${accounts.id} then -${transactions.amount}
         else 0
       end

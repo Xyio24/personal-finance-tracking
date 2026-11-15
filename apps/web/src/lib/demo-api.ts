@@ -241,6 +241,7 @@ function toValues(input: TransactionInput) {
     categoryId: input.type === 'income' || input.type === 'expense' ? input.categoryId : null,
     goalId:
       input.type === 'saving_deposit' || input.type === 'saving_withdrawal' ? input.goalId : null,
+    debtId: input.type === 'debt_repay' || input.type === 'debt_collect' ? input.debtId : null,
     date: input.date,
     note: input.note || null,
   }
@@ -414,6 +415,7 @@ function seed(): Store {
     amount,
     accountId: account(from),
     goalId: null,
+    debtId: null,
     date: shiftDate(today, -daysAgo),
     note,
     // Later in the list = earlier in the day, so same-day entries keep a stable order.
@@ -485,6 +487,7 @@ function seed(): Store {
       toAccountId: null,
       categoryId: null,
       goalId: goalId(goal),
+      debtId: null,
       date: shiftDate(today, -daysAgo),
       note,
       createdAt: daysAgoIso(daysAgo),
