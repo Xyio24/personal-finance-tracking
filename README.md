@@ -9,8 +9,8 @@ di server rumah lewat Cloudflare Tunnel.
 | Fase              | Isi                                                          | Status |
 | ----------------- | ------------------------------------------------------------ | ------ |
 | 0. Fondasi        | Monorepo, database, login Google + allowlist, Docker, deploy | ✅     |
-| 1. Inti           | Dompet, kategori, transaksi, transfer                        | ⏳     |
-| 2. Dashboard      | Ringkasan bulanan, grafik, riwayat + filter                  | ⏳     |
+| 1. Inti           | Dompet, kategori, transaksi, transfer, riwayat per bulan     | ✅     |
+| 2. Dashboard      | Grafik per kategori, tren bulanan, filter, pencarian         | ⏳     |
 | 3. Tabungan       | Isi tabungan, target + deadline, culik tabungan 🥷           | ⏳     |
 | 4. Hutang/Piutang | Catat, cicil, jatuh tempo, lunas/ikhlaskan                   | ⏳     |
 | 5. Polish         | PWA, export CSV, backup offsite, test e2e                    | ⏳     |
@@ -60,8 +60,22 @@ npm install
 npm run dev:demo            # buka http://localhost:5173
 ```
 
-Mode demo hanya ada di frontend: login dilewati dengan user palsu dan data tidak tersimpan.
-API tetap mewajibkan session asli, dan build production tidak berisi kode demo sama sekali.
+Mode demo hanya ada di frontend: login dilewati dengan user palsu, dan sebuah API tiruan di
+memori (dengan aturan yang sama seperti server) mengisi contoh dompet dan transaksi. Data tidak
+tersimpan. API asli tetap mewajibkan session, dan build production tidak berisi kode demo sama
+sekali.
+
+### Fitur yang sudah ada
+
+- **Dompet** (tunai, bank, e-wallet): saldo awal, saldo terkini dihitung dari transaksi, arsip
+- **Kategori** pemasukan/pengeluaran dengan ikon & warna; 18 kategori awal dibuat saat login
+  pertama
+- **Transaksi**: pengeluaran, pemasukan, dan transfer antar dompet; ubah dan hapus
+- **Riwayat** per bulan, dikelompokkan per hari, dengan total pemasukan/pengeluaran/selisih
+- **Beranda**: total saldo, ringkasan bulan ini, saldo per dompet, transaksi terakhir
+
+Uang disimpan sebagai rupiah bulat (`bigint`), jadi semua penjumlahan eksak. Dompet atau
+kategori yang sudah dipakai tidak bisa dihapus, hanya diarsipkan, supaya riwayat tetap utuh.
 
 | Perintah                    | Fungsi                                                              |
 | --------------------------- | ------------------------------------------------------------------- |
@@ -72,7 +86,8 @@ API tetap mewajibkan session asli, dan build production tidak berisi kode demo s
 | `npm run db:migrate`        | Terapkan migrasi (API juga menjalankannya otomatis saat start)      |
 | `npm run lint` / `format`   | Cek / rapikan kode dengan Biome                                     |
 | `npm run typecheck`         | Cek tipe semua workspace                                            |
-| `npm test`                  | Jalankan unit test                                                  |
+| `npm test`                  | Jalankan unit test (tanpa database)                                 |
+| `npm run test:integration`  | Tes API ke PostgreSQL sungguhan (butuh `npm run db:up`)             |
 | `npm run build`             | Build production (web + bundle API)                                 |
 
 ## Deploy
