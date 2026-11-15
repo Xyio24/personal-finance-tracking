@@ -1,13 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, HashRouter } from 'react-router'
+import { BrowserRouter, MemoryRouter } from 'react-router'
 import { App } from './App'
 import './index.css'
 import { isDemo } from './lib/demo'
 
-// The demo build may be opened from any static host or file, where only hash URLs work.
-const Router = isDemo ? HashRouter : BrowserRouter
+// The demo build may be opened from a file, any static host or a sandboxed frame, so it keeps
+// navigation in memory instead of touching the URL.
+const Router = isDemo ? MemoryRouter : BrowserRouter
 
 const queryClient = new QueryClient({
   defaultOptions: {
