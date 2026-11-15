@@ -1,4 +1,5 @@
 import { formatRupiah, summarize, toMonthKey } from '@finance/shared'
+import { PiggyBank } from 'lucide-react'
 import { Link } from 'react-router'
 import { AccountBadge } from '../components/Badges'
 import { CategoryBreakdown } from '../components/CategoryBreakdown'
@@ -7,7 +8,7 @@ import { ListSkeleton, LoadError } from '../components/QueryState'
 import { TransactionRow, useLookups } from '../components/TransactionRow'
 import { cardClass } from '../components/ui'
 import { useCurrentUser } from '../lib/auth'
-import { useAccounts, useCategories, useMonthTransactions } from '../lib/queries'
+import { useAccounts, useCategories, useMonthTransactions, useSavingsGoals } from '../lib/queries'
 
 function greeting(date = new Date()) {
   const hour = date.getHours()
@@ -26,10 +27,15 @@ export function HomePage() {
 
   const accounts = useAccounts()
   const categories = useCategories()
+  const goals = useSavingsGoals()
   const transactions = useMonthTransactions(month)
-  const lookups = useLookups(accounts.data, categories.data)
+  const lookups = useLookups(accounts.data, categories.data, goals.data)
 
-  const totalBalance = accounts.data?.reduce((sum, a) => sum + a.balance, 0)
+  const walletTotal = accounts.data?.reduce((sum, a) => sum + a.balance, 0)
+  const savingsTotal = goals.data?.reduce((sum, g) => sum + g.balance, 0)
+  // Money put into savings left the wallets but is still yours: count both.
+  const netWorth =
+    walletTotal === undefined || savingsTotal === undefined ? undefined : walletTotal + savingsTotal
   const activeAccounts = accounts.data?.filter((a) => !a.archived) ?? []
   const totals = summarize(transactions.data ?? [])
   const recent = transactions.data?.slice(0, 5) ?? []
@@ -40,14 +46,19 @@ export function HomePage() {
       <PageHeader subtitle={greeting()} title={`Halo, ${firstName} 👋`} />
 
       <section className="mx-4 rounded-3xl bg-linear-to-br from-emerald-600 to-emerald-800 p-5 text-white shadow-lg shadow-emerald-600/20">
-        <p className="text-sm text-emerald-100">Total saldo</p>
+        <p className="text-sm text-emerald-100">Kekayaan bersih</p>
         <p className="mt-1 truncate text-3xl font-bold tracking-tight">
-          {totalBalance === undefined ? (
+          {netWorth === undefined ? (
             <span className="inline-block h-9 w-48 animate-pulse rounded-lg bg-white/20" />
           ) : (
-            formatRupiah(totalBalance)
+            formatRupiah(netWorth)
           )}
         </p>
+        {netWorth !== undefined && (
+          <p className="mt-1 truncate text-xs text-emerald-100/80">
+            Dompet {formatRupiah(walletTotal ?? 0)} · Tabungan {formatRupiah(savingsTotal ?? 0)}
+          </p>
+        )}
         <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-white/15 pt-3">
           <div className="min-w-0">
             <dt className="text-xs text-emerald-100/80">Pemasukan bulan ini</dt>
@@ -94,6 +105,18 @@ export function HomePage() {
                     </p>
                   </Link>
                 ))}
+            {savingsTotal !== undefined && (
+              <Link
+                to="/tabungan"
+                className={`w-36 shrink-0 p-3 active:bg-slate-50 dark:active:bg-slate-800 ${cardClass}`}
+              >
+                <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">
+                  <PiggyBank className="size-4" aria-hidden />
+                </span>
+                <p className="mt-2 truncate text-sm text-slate-500 dark:text-slate-400">Tabungan</p>
+                <p className="truncate font-semibold tabular-nums">{formatRupiah(savingsTotal)}</p>
+              </Link>
+            )}
           </div>
         )}
       </section>

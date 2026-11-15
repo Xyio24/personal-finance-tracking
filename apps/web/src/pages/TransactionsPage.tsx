@@ -23,6 +23,7 @@ import {
   useAccounts,
   useCategories,
   useMonthTransactions,
+  useSavingsGoals,
   useTransactionSearch,
 } from '../lib/queries'
 import { transactionTypes } from '../lib/visuals'
@@ -87,7 +88,8 @@ export function TransactionsPage() {
   const search = useTransactionSearch(q, filters)
   const accounts = useAccounts()
   const categories = useCategories()
-  const lookups = useLookups(accounts.data, categories.data)
+  const goals = useSavingsGoals()
+  const lookups = useLookups(accounts.data, categories.data, goals.data)
 
   const source = searching ? search : monthList
   const list = searching ? search.data : monthList.data?.filter((t) => matchesFilters(t, filters))
