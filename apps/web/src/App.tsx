@@ -3,6 +3,7 @@ import { AppShell } from './components/AppShell'
 import { RequireAuth } from './components/RequireAuth'
 import { AccountsPage } from './pages/AccountsPage'
 import { CategoriesPage } from './pages/CategoriesPage'
+import { DebtDetailPage } from './pages/DebtDetailPage'
 import { DebtsPage } from './pages/DebtsPage'
 import { GoalDetailPage } from './pages/GoalDetailPage'
 import { HomePage } from './pages/HomePage'
@@ -25,6 +26,7 @@ export function App() {
           <Route path="tabungan" element={<SavingsPage />} />
           <Route path="tabungan/:id" element={<GoalDetailPage />} />
           <Route path="hutang" element={<DebtsPage />} />
+          <Route path="hutang/:id" element={<DebtDetailPage />} />
           <Route path="pengaturan" element={<SettingsPage />} />
           <Route path="pengaturan/dompet" element={<AccountsPage />} />
           <Route path="pengaturan/kategori" element={<CategoriesPage />} />

@@ -86,11 +86,14 @@ export function AccountPicker({
   accounts,
   value,
   onChange,
+  noneLabel,
 }: {
   label: string
   accounts: Account[]
   value: string
   onChange: (id: string) => void
+  /** Adds a chip for "no wallet", selected when value is "". */
+  noneLabel?: string
 }) {
   return (
     // min-w-0: a fieldset defaults to min-width: min-content and would grow with the chip row
@@ -110,6 +113,16 @@ export function AccountPicker({
             {account.name}
           </button>
         ))}
+        {noneLabel && (
+          <button
+            type="button"
+            aria-pressed={value === ''}
+            onClick={() => onChange('')}
+            className={chipClass(value === '')}
+          >
+            {noneLabel}
+          </button>
+        )}
       </div>
     </fieldset>
   )
