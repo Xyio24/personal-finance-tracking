@@ -60,10 +60,19 @@ export type GoalProgress = {
   remaining: number | null
   /** Per month until the deadline, rounded up to Rp 1.000 (null without a deadline). */
   monthlyNeeded: number | null
+  /** Recent saving pace per month (net of withdrawals), rounded to Rp 1.000. */
+  pace: number
   status: GoalStatus
 }
 
 const AVERAGE_MONTH_DAYS = 30.44
+
+/** Net saved per month recently: the last 90 days, or the goal's whole life if shorter. */
+function savingPace(goal: Pick<SavingsGoal, 'savedLast90Days' | 'createdAt'>, today: string) {
+  const ageDays = Math.max(daysBetween(goal.createdAt.slice(0, 10), today), 0)
+  const paceMonths = Math.min(3, Math.max(1, ageDays / AVERAGE_MONTH_DAYS))
+  return { ageDays, pace: goal.savedLast90Days / paceMonths }
+}
 
 /**
  * Where a goal stands on `today` ("YYYY-MM-DD"). The pace is what was saved in the last 90
@@ -77,23 +86,30 @@ export function goalProgress(
   >,
   today: string,
 ): GoalProgress {
+  const { ageDays, pace } = savingPace(goal, today)
+  const roundedPace = Math.round(pace / 1000) * 1000
+  const result = (fields: Omit<GoalProgress, 'pace'>): GoalProgress => ({
+    ...fields,
+    pace: roundedPace,
+  })
+
   const target = goal.targetAmount
-  if (!target) return { ratio: null, remaining: null, monthlyNeeded: null, status: 'open' }
+  if (!target) return result({ ratio: null, remaining: null, monthlyNeeded: null, status: 'open' })
 
   const remaining = Math.max(target - goal.balance, 0)
   const ratio = Math.min(Math.max(goal.balance / target, 0), 1)
-  if (remaining === 0) return { ratio: 1, remaining: 0, monthlyNeeded: 0, status: 'achieved' }
-  if (!goal.deadline) return { ratio, remaining, monthlyNeeded: null, status: 'open' }
+  if (remaining === 0) {
+    return result({ ratio: 1, remaining: 0, monthlyNeeded: 0, status: 'achieved' })
+  }
+  if (!goal.deadline) return result({ ratio, remaining, monthlyNeeded: null, status: 'open' })
 
   const daysLeft = daysBetween(today, goal.deadline)
-  if (daysLeft < 0) return { ratio, remaining, monthlyNeeded: remaining, status: 'overdue' }
+  if (daysLeft < 0) {
+    return result({ ratio, remaining, monthlyNeeded: remaining, status: 'overdue' })
+  }
 
   const monthsLeft = Math.max(1, Math.ceil(daysLeft / AVERAGE_MONTH_DAYS))
   const monthlyNeeded = Math.ceil(remaining / monthsLeft / 1000) * 1000
-
-  const ageDays = Math.max(daysBetween(goal.createdAt.slice(0, 10), today), 0)
-  const paceMonths = Math.min(3, Math.max(1, ageDays / AVERAGE_MONTH_DAYS))
-  const pace = goal.savedLast90Days / paceMonths
 
   let status: GoalStatus
   if (pace >= monthlyNeeded) status = 'on_track'
@@ -101,5 +117,5 @@ export function goalProgress(
   else if (pace >= monthlyNeeded * 0.6) status = 'tight'
   else status = 'behind'
 
-  return { ratio, remaining, monthlyNeeded, status }
+  return result({ ratio, remaining, monthlyNeeded, status })
 }

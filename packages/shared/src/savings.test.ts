@@ -20,6 +20,7 @@ describe('goalProgress', () => {
     expect(progress.remaining).toBe(6_000_000)
     expect(progress.monthlyNeeded).toBe(1_000_000)
     expect(progress.status).toBe('on_track')
+    expect(progress.pace).toBe(1_000_000)
   })
 
   it('calls it tight or behind when the recent pace falls short', () => {

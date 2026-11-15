@@ -18,6 +18,7 @@ import { HeaderIconButton, SubPageHeader } from '../components/SubPageHeader'
 import { inputClass, labelClass, primaryButtonClass } from '../components/ui'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
+import { readLastAccount, rememberAccount } from '../lib/lastAccount'
 import { useGoBack } from '../lib/navigation'
 import {
   useAccounts,
@@ -84,24 +85,6 @@ function Screen({ title, children }: { title: string; children: React.ReactNode 
       {children}
     </div>
   )
-}
-
-// Remember the last wallet used, so the next entry starts there. Purely a convenience:
-// storage may be unavailable (private mode), and then the first wallet is used.
-const LAST_ACCOUNT_KEY = 'finance:last-account'
-const readLastAccount = () => {
-  try {
-    return localStorage.getItem(LAST_ACCOUNT_KEY)
-  } catch {
-    return null
-  }
-}
-const rememberAccount = (id: string) => {
-  try {
-    localStorage.setItem(LAST_ACCOUNT_KEY, id)
-  } catch {
-    // ignore
-  }
 }
 
 type Draft = {

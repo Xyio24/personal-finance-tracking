@@ -4,6 +4,7 @@ import { RequireAuth } from './components/RequireAuth'
 import { AccountsPage } from './pages/AccountsPage'
 import { CategoriesPage } from './pages/CategoriesPage'
 import { DebtsPage } from './pages/DebtsPage'
+import { GoalDetailPage } from './pages/GoalDetailPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { ReportPage } from './pages/ReportPage'
@@ -22,6 +23,7 @@ export function App() {
           <Route path="transaksi" element={<TransactionsPage />} />
           <Route path="laporan" element={<ReportPage />} />
           <Route path="tabungan" element={<SavingsPage />} />
+          <Route path="tabungan/:id" element={<GoalDetailPage />} />
           <Route path="hutang" element={<DebtsPage />} />
           <Route path="pengaturan" element={<SettingsPage />} />
           <Route path="pengaturan/dompet" element={<AccountsPage />} />

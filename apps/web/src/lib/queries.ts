@@ -204,8 +204,14 @@ export const useUpdateGoal = () =>
     [queryKeys.savings],
   )
 
-export const useDeleteGoal = () =>
-  useRefreshingMutation(
-    (id: string) => api<void>(`/savings/${id}`, { method: 'DELETE' }),
-    [queryKeys.savings],
-  )
+export function useDeleteGoal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api<void>(`/savings/${id}`, { method: 'DELETE' }),
+    // Refresh without waiting: the caller navigates away from the deleted goal's page first,
+    // instead of that page re-rendering as "not found" (and unmounting before it can leave).
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.savings })
+    },
+  })
+}
