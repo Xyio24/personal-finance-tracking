@@ -1,7 +1,15 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/drizzle/meta", "!**/package-lock.json"]
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/dist-*",
+      "!**/drizzle/meta",
+      "!**/package-lock.json",
+      "!apps/web/public/my-face.svg"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

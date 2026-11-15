@@ -13,6 +13,13 @@ coverage/
 credentials*.json
 cloudflared/
 
+# Personal assets kept only on this machine (e.g. a favicon with a real photo)
+apps/web/public/my-face.svg
+
+# Personal Claude Code settings & hooks
+.claude/settings.local.json
+.claude/hooks/
+
 # Database backups / dumps (contain personal financial data)
 backups/
 *.sql.gz
