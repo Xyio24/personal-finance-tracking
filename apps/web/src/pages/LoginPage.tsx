@@ -1,4 +1,5 @@
 import { Navigate, useSearchParams } from 'react-router'
+import { Logo } from '../components/Logo'
 import { useMe } from '../lib/auth'
 import { demoSession, isDemo } from '../lib/demo'
 
@@ -24,7 +25,7 @@ export function LoginPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-[calc(env(safe-area-inset-top)+5rem)] pb-[calc(env(safe-area-inset-bottom)+2rem)]">
       <div className="flex-1">
-        <img src="/favicon.svg" alt="" className="size-16" />
+        <Logo className="size-16" />
         <h1 className="mt-6 text-3xl font-bold tracking-tight">Finance</h1>
         <p className="mt-2 text-slate-500 dark:text-slate-400">
           Catat pemasukan, pengeluaran, tabungan, dan hutang — langsung dari HP.
