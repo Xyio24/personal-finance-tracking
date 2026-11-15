@@ -33,9 +33,11 @@ export async function openApp(page: Page) {
   await expect(page.getByText('Kekayaan bersih')).toBeVisible()
 }
 
+/** Waits for the amount itself: right after a page load the card shows a placeholder. */
 export async function netWorth(page: Page) {
-  const hero = page.getByRole('region', { name: 'Kekayaan bersih' })
-  return rupiah((await hero.locator('p').nth(1).textContent()) ?? '')
+  const amount = page.getByRole('region', { name: 'Kekayaan bersih' }).locator('p').nth(1)
+  await expect(amount).toHaveText(/Rp/)
+  return rupiah((await amount.textContent()) ?? '')
 }
 
 export async function goTo(page: Page, tab: 'Beranda' | 'Transaksi' | 'Tabungan' | 'Hutang') {
