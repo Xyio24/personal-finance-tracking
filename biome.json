@@ -7,6 +7,8 @@
       "!**/dist",
       "!**/dist-*",
       "!**/drizzle/meta",
+      "!e2e/test-results",
+      "!e2e/playwright-report",
       "!**/package-lock.json",
       "!apps/web/public/my-face.svg"
     ]
