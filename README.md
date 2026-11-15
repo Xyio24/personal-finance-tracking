@@ -13,7 +13,7 @@ di server rumah lewat Cloudflare Tunnel.
 | 2. Dashboard      | Grafik per kategori, tren bulanan, filter, pencarian         | ✅     |
 | 3. Tabungan       | Isi tabungan, target + deadline, culik tabungan 🥷           | ✅     |
 | 4. Hutang/Piutang | Catat, cicil, jatuh tempo, lunas/ikhlaskan                   | ✅     |
-| 5. Polish         | PWA, export CSV, backup offsite, test e2e                    | ⏳     |
+| 5. Polish         | PWA, export CSV, backup offsite, test e2e                    | ✅     |
 
 ## Stack
 
@@ -86,6 +86,10 @@ sekali.
   dompet seperti paylater), jatuh tempo opsional dengan tanda lewat/dekat jatuh tempo, cicil
   sampai lunas (tidak bisa melebihi sisa), dan _ikhlaskan_ piutang atau anggap hutang lunas
   (bisa dibatalkan)
+- **Aplikasi di HP (PWA)**: bisa dipasang di layar utama dan berjalan tanpa bilah browser, tetap
+  terbuka saat offline (data dimuat lagi begitu tersambung). Data keuangan tidak pernah disimpan
+  di cache browser.
+- **Ekspor CSV** semua transaksi dari Pengaturan, siap dibuka di Excel atau Google Sheets
 
 Uang disimpan sebagai rupiah bulat (`bigint`), jadi semua penjumlahan eksak. Isi dan culik
 tabungan, juga pinjam dan bayar hutang, hanya memindahkan uang, jadi tidak dihitung sebagai
@@ -103,12 +107,13 @@ kategori yang sudah dipakai tidak bisa dihapus, hanya diarsipkan, supaya riwayat
 | `npm run typecheck`         | Cek tipe semua workspace                                            |
 | `npm test`                  | Jalankan unit test (tanpa database)                                 |
 | `npm run test:integration`  | Tes API ke PostgreSQL sungguhan (butuh `npm run db:up`)             |
+| `npm run test:e2e`          | Tes browser (Playwright) di layar seukuran HP, memakai mode demo    |
 | `npm run build`             | Build production (web + bundle API)                                 |
 
 ## Deploy
 
 Lihat **[docs/DEPLOY.md](docs/DEPLOY.md)**: server Ubuntu, Cloudflare Tunnel, Google OAuth,
-backup & restore.
+backup harian & restore, dan backup offsite terenkripsi ke cloud (rclone).
 
 ## Keamanan
 
@@ -122,3 +127,6 @@ Repositori ini publik, jadi:
 - Proteksi CSRF, rate limit pada endpoint login, header keamanan (CSP, HSTS, dll).
 - Log request tidak pernah mencatat query string (kode OAuth tidak masuk log).
 - Port aplikasi hanya terbuka di `127.0.0.1`; akses publik hanya lewat Cloudflare Tunnel.
+- Service worker hanya menyimpan kode aplikasi; respons `/api` (data keuangan) tidak pernah
+  masuk cache browser. File ekspor CSV dikirim dengan `Cache-Control: no-store`.
+- Backup offsite dienkripsi di server sebelum diunggah; penyedia cloud hanya melihat file acak.
