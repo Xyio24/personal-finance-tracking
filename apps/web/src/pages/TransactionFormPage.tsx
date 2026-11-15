@@ -1,6 +1,7 @@
 import {
   type Account,
   type Category,
+  formatRupiah,
   isDebtType,
   isSavingsType,
   type Transaction,
@@ -16,9 +17,9 @@ import { AccountPicker, DateField } from '../components/Pickers'
 import { ListSkeleton, LoadError } from '../components/QueryState'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { HeaderIconButton, SubPageHeader } from '../components/SubPageHeader'
-import { inputClass, labelClass, primaryButtonClass } from '../components/ui'
+import { dangerButtonClass, inputClass, labelClass, primaryButtonClass } from '../components/ui'
 import { errorMessage } from '../lib/errors'
-import { todayKey } from '../lib/format'
+import { formatDate, todayKey } from '../lib/format'
 import { readLastAccount, rememberAccount } from '../lib/lastAccount'
 import { useGoBack } from '../lib/navigation'
 import {
@@ -157,18 +158,20 @@ function TransactionForm({
   const save = useSaveTransaction()
   const remove = useDeleteTransaction()
   const goBack = useGoBack('/transaksi')
-  const _today = todayKey()
 
-  // Archived wallets and categories stay visible only when this entry already uses them.
-  const usable = (item: { id: string; archived: boolean }, ...ids: string[]) =>
+  // Archived wallets and categories stay visible only when this entry uses them, now or as
+  // saved (so picking another one by mistake can be undone).
+  const usable = (item: { id: string; archived: boolean }, ...ids: (string | null | undefined)[]) =>
     !item.archived || ids.includes(item.id)
-  const accountChoices = accounts.filter((a) => usable(a, draft.accountId, draft.toAccountId))
+  const accountChoices = accounts.filter((a) =>
+    usable(a, draft.accountId, draft.toAccountId, existing?.accountId, existing?.toAccountId),
+  )
   // The wallet list may still be loading or refreshing when the form opens: fall back to the
   // first suitable wallet instead of leaving a picker empty (and the save button disabled).
   const accountId = draft.accountId || accountChoices[0]?.id || ''
   const toAccountId = draft.toAccountId || accountChoices.find((a) => a.id !== accountId)?.id || ''
   const categoryChoices = categories.filter(
-    (c) => c.type === draft.type && usable(c, draft.categoryId),
+    (c) => c.type === draft.type && usable(c, draft.categoryId, existing?.categoryId),
   )
 
   const isTransfer = draft.type === 'transfer'
@@ -358,6 +361,17 @@ function TransactionForm({
             {errorMessage(save.error)}
           </p>
         )}
+
+        {existing && (
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className={dangerButtonClass}
+          >
+            <Trash2 className="size-4" aria-hidden />
+            Hapus transaksi ini
+          </button>
+        )}
       </form>
 
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
@@ -378,7 +392,7 @@ function TransactionForm({
         <ConfirmSheet
           open={confirmDelete}
           title="Hapus transaksi?"
-          message="Transaksi ini akan dihapus permanen dan saldo dompet dihitung ulang."
+          message={deleteMessage(existing, accounts, categories)}
           confirmLabel="Hapus"
           pending={remove.isPending}
           error={remove.error ? errorMessage(remove.error) : null}
@@ -391,4 +405,21 @@ function TransactionForm({
       )}
     </div>
   )
+}
+
+/** "Pengeluaran Rp 38.000 · Makan & Minum · 15 Nov 2026 akan dihapus permanen. Saldo Tunai …" */
+function deleteMessage(t: Transaction, accounts: Account[], categories: Category[]) {
+  const wallet = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? 'dompet terhapus'
+  const amount = formatRupiah(t.amount)
+  const what =
+    t.type === 'transfer'
+      ? `Transfer ${amount} dari ${wallet(t.accountId)} ke ${wallet(t.toAccountId)}`
+      : `${t.type === 'income' ? 'Pemasukan' : 'Pengeluaran'} ${amount} · ${
+          categories.find((c) => c.id === t.categoryId)?.name ?? 'Tanpa kategori'
+        }`
+  const effect =
+    t.type === 'transfer'
+      ? `Uangnya kembali ke ${wallet(t.accountId)}.`
+      : `Saldo ${wallet(t.accountId)} ${t.type === 'income' ? 'berkurang' : 'bertambah'} ${amount}.`
+  return `${what} · ${formatDate(t.date)} akan dihapus permanen. ${effect}`
 }
