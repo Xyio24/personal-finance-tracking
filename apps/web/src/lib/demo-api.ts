@@ -64,13 +64,16 @@ export function resetDemoData() {
 
 export async function demoRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   await new Promise((resolve) => setTimeout(resolve, 120)) // feel like a network round trip
-  // Like the real API, nothing gets through without a connection (fetch rejects the same way).
-  if (globalThis.navigator?.onLine === false) throw new TypeError('Failed to fetch')
   store ??= seed()
 
   const url = new URL(path, 'https://demo.invalid')
   const [resource, id] = url.pathname.split('/').filter(Boolean)
   const method = (init.method ?? 'GET').toUpperCase()
+  // Like the real API, a change made without a connection fails (fetch rejects the same way).
+  // Reads are left alone: queries already wait while offline, and the demo export reads locally.
+  if (method !== 'GET' && globalThis.navigator?.onLine === false) {
+    throw new TypeError('Failed to fetch')
+  }
   const body: unknown = typeof init.body === 'string' ? JSON.parse(init.body) : undefined
 
   const result = route(store, method, resource, id, url.searchParams, body)

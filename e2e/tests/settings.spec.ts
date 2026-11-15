@@ -18,6 +18,18 @@ test('exports every transaction as a CSV file', async ({ page }) => {
   expect(lines.length).toBeGreaterThan(10)
 })
 
+test('the demo export reads its local data even offline', async ({ page, context }) => {
+  await openApp(page)
+  await page.getByRole('link', { name: 'Pengaturan akun' }).first().click()
+  await context.setOffline(true) // only changes fail offline in the demo, like the real API
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByText('Ekspor transaksi (CSV)').click(),
+  ])
+  expect(download.suggestedFilename()).toMatch(/\.csv$/)
+  await context.setOffline(false)
+})
+
 test('logging out leads to the login page and back in', async ({ page }) => {
   await openApp(page)
   await page.getByRole('link', { name: 'Pengaturan akun' }).first().click()
