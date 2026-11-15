@@ -167,6 +167,10 @@ function TransactionForm({
   const usable = (item: { id: string; archived: boolean }, ...ids: string[]) =>
     !item.archived || ids.includes(item.id)
   const accountChoices = accounts.filter((a) => usable(a, draft.accountId, draft.toAccountId))
+  // The wallet list may still be loading or refreshing when the form opens: fall back to the
+  // first suitable wallet instead of leaving a picker empty (and the save button disabled).
+  const accountId = draft.accountId || accountChoices[0]?.id || ''
+  const toAccountId = draft.toAccountId || accountChoices.find((a) => a.id !== accountId)?.id || ''
   const categoryChoices = categories.filter(
     (c) => c.type === draft.type && usable(c, draft.categoryId),
   )
@@ -174,9 +178,9 @@ function TransactionForm({
   const isTransfer = draft.type === 'transfer'
   const valid =
     draft.amount > 0 &&
-    draft.accountId !== '' &&
+    accountId !== '' &&
     (isTransfer
-      ? draft.toAccountId !== '' && draft.toAccountId !== draft.accountId
+      ? toAccountId !== '' && toAccountId !== accountId
       : categoryChoices.some((c) => c.id === draft.categoryId))
 
   function changeType(type: TransactionType) {
@@ -191,13 +195,13 @@ function TransactionForm({
     const { type } = draft
     const input: TransactionInput =
       type === 'transfer'
-        ? { type, ...common, accountId: draft.accountId, toAccountId: draft.toAccountId }
-        : { type, ...common, accountId: draft.accountId, categoryId: draft.categoryId }
+        ? { type, ...common, accountId, toAccountId }
+        : { type, ...common, accountId, categoryId: draft.categoryId }
     save.mutate(
       { id: existing?.id, input },
       {
         onSuccess: () => {
-          rememberAccount(draft.accountId)
+          rememberAccount(accountId)
           goBack()
         },
       },
@@ -262,22 +266,22 @@ function TransactionForm({
             <AccountPicker
               label="Dari dompet"
               accounts={accountChoices}
-              value={draft.accountId}
+              value={accountId}
               onChange={(accountId) =>
                 set({
                   accountId,
                   // Never leave both sides on the same wallet.
                   toAccountId:
-                    accountId === draft.toAccountId
+                    accountId === toAccountId
                       ? (accountChoices.find((a) => a.id !== accountId)?.id ?? '')
-                      : draft.toAccountId,
+                      : toAccountId,
                 })
               }
             />
             <AccountPicker
               label="Ke dompet"
-              accounts={accountChoices.filter((a) => a.id !== draft.accountId)}
-              value={draft.toAccountId}
+              accounts={accountChoices.filter((a) => a.id !== accountId)}
+              value={toAccountId}
               onChange={(toAccountId) => set({ toAccountId })}
             />
             {accountChoices.length < 2 && (
@@ -330,7 +334,7 @@ function TransactionForm({
             <AccountPicker
               label="Dompet"
               accounts={accountChoices}
-              value={draft.accountId}
+              value={accountId}
               onChange={(accountId) => set({ accountId })}
             />
           </>
