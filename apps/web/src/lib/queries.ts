@@ -5,6 +5,9 @@ import type {
   Category,
   CategoryInput,
   CategoryUpdate,
+  Debt,
+  DebtInput,
+  DebtUpdate,
   GoalInput,
   GoalUpdate,
   MonthlyTotal,
@@ -33,6 +36,8 @@ export const queryKeys = {
   monthly: (from: string, to: string) => ['reports', 'monthly', from, to],
   savings: ['savings'],
   goalHistory: (goalId: string) => ['transactions', 'goal', goalId],
+  debts: ['debts'],
+  debtHistory: (debtId: string) => ['transactions', 'debt', debtId],
 } as const
 
 /** Query string without empty values. */
@@ -153,7 +158,13 @@ export const useSaveTransaction = () =>
       id
         ? api<Transaction>(`/transactions/${id}`, jsonBody('PUT', input))
         : api<Transaction>('/transactions', jsonBody('POST', input)),
-    [queryKeys.transactions, queryKeys.accounts, queryKeys.reports, queryKeys.savings],
+    [
+      queryKeys.transactions,
+      queryKeys.accounts,
+      queryKeys.reports,
+      queryKeys.savings,
+      queryKeys.debts,
+    ],
   )
 
 export function useDeleteTransaction() {
@@ -172,6 +183,7 @@ export function useDeleteTransaction() {
         queryClient.invalidateQueries({ queryKey: queryKeys.accounts }),
         queryClient.invalidateQueries({ queryKey: queryKeys.reports }),
         queryClient.invalidateQueries({ queryKey: queryKeys.savings }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.debts }),
       ]),
   })
 }
@@ -212,6 +224,49 @@ export function useDeleteGoal() {
     // instead of that page re-rendering as "not found" (and unmounting before it can leave).
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.savings })
+    },
+  })
+}
+
+// Debts (hutang/piutang). Creating, editing or deleting one can move wallet money (the
+// opening move), so wallets and transaction lists are refreshed too. Payments are
+// transactions (useSaveTransaction).
+
+const debtRefresh = [queryKeys.debts, queryKeys.accounts, queryKeys.transactions] as const
+
+export function useDebts() {
+  return useQuery({ queryKey: queryKeys.debts, queryFn: () => api<Debt[]>('/debts') })
+}
+
+/** The opening move and every payment of one debt, newest first. */
+export function useDebtHistory(debtId: string) {
+  return useQuery({
+    queryKey: queryKeys.debtHistory(debtId),
+    queryFn: () => api<Transaction[]>(`/transactions?${toQuery({ debtId })}`),
+  })
+}
+
+export const useCreateDebt = () =>
+  useRefreshingMutation(
+    (input: DebtInput) => api<Debt>('/debts', jsonBody('POST', input)),
+    debtRefresh,
+  )
+
+export const useUpdateDebt = () =>
+  useRefreshingMutation(
+    ({ id, ...patch }: DebtUpdate & { id: string }) =>
+      api<Debt>(`/debts/${id}`, jsonBody('PATCH', patch)),
+    debtRefresh,
+  )
+
+export function useDeleteDebt() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api<void>(`/debts/${id}`, { method: 'DELETE' }),
+    // Like goals: refresh without waiting so the caller can leave the deleted debt's page
+    // before it would re-render as "not found".
+    onSuccess: () => {
+      for (const queryKey of debtRefresh) void queryClient.invalidateQueries({ queryKey })
     },
   })
 }

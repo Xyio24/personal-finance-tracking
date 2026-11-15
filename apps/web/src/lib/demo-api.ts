@@ -9,6 +9,9 @@ import {
   computeBalances,
   computeGoalBalances,
   DEFAULT_CATEGORIES,
+  type Debt,
+  debtInputSchema,
+  debtUpdateSchema,
   defaultCategorySort,
   goalDelta,
   goalInputSchema,
@@ -40,10 +43,12 @@ import { ApiError } from './errors'
 type StoredAccount = Omit<Account, 'balance'>
 type StoredCategory = Category & { sortOrder: number }
 type StoredGoal = Omit<SavingsGoal, 'balance' | 'savedLast90Days'>
+type StoredDebt = Omit<Debt, 'paid' | 'remaining' | 'accountId'>
 type Store = {
   accounts: StoredAccount[]
   categories: StoredCategory[]
   goals: StoredGoal[]
+  debts: StoredDebt[]
   transactions: Transaction[]
 }
 
@@ -83,6 +88,7 @@ function route(
     return monthlyReport(db, query)
   }
   if (resource === 'savings') return savingsRoute(db, method, id, body)
+  if (resource === 'debts') return debtsRoute(db, method, id, body)
   throw new ApiError(404, 'not_found')
 }
 
@@ -178,11 +184,12 @@ function transactionsRoute(
         (t) =>
           (t.note ?? '').toLowerCase().includes(needle) ||
           nameOf(db.categories, t.categoryId).includes(needle) ||
-          nameOf(db.goals, t.goalId).includes(needle),
+          nameOf(db.goals, t.goalId).includes(needle) ||
+          (db.debts.find((d) => d.id === t.debtId)?.person.toLowerCase() ?? '').includes(needle),
       )
     }
     list.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
-    return month || (filters.goalId && !q) ? list : list.slice(0, SEARCH_LIMIT)
+    return month || ((filters.goalId || filters.debtId) && !q) ? list : list.slice(0, SEARCH_LIMIT)
   }
   if (!id && method === 'POST') {
     const input = parse(transactionInputSchema, body)
@@ -193,7 +200,10 @@ function transactionsRoute(
   }
   const existing = find(db.transactions, id)
   if (method === 'GET') return existing
+  // Like the server: a debt's opening move only changes through the debt itself.
+  const isOpening = existing.type === 'debt_borrow' || existing.type === 'debt_lend'
   if (method === 'PUT') {
+    if (isOpening) throw new ApiError(400, 'managed_by_debt')
     const input = parse(transactionInputSchema, body)
     checkReferences(db, input, existing)
     keepGoalPositive(db, existing, input)
@@ -201,6 +211,7 @@ function transactionsRoute(
     return existing
   }
   if (method === 'DELETE') {
+    if (isOpening) throw new ApiError(400, 'managed_by_debt')
     keepGoalPositive(db, existing)
     db.transactions = db.transactions.filter((t) => t.id !== id)
     return undefined
@@ -272,6 +283,99 @@ function checkReferences(db: Store, input: TransactionInput, existing?: Transact
       if (input.amount > available) throw new ApiError(400, 'insufficient_savings')
     }
   }
+  if (input.type === 'debt_repay' || input.type === 'debt_collect') {
+    const debt = debtsWithTotals(db, existing?.id).find((d) => d.id === input.debtId)
+    const expected = debt?.direction === 'payable' ? 'debt_repay' : 'debt_collect'
+    if (!debt || input.type !== expected) throw new ApiError(400, 'invalid_debt')
+    if (debt.writtenOff && debt.id !== existing?.debtId) throw new ApiError(400, 'debt_closed')
+    if (input.amount > debt.amount - debt.paid) throw new ApiError(400, 'debt_overpaid')
+  }
+}
+
+// Debts
+
+/** Debts with what was paid, what is left and the opening wallet; optionally ignoring a payment. */
+function debtsWithTotals(db: Store, excludeTransactionId?: string): Debt[] {
+  return db.debts.map((debt) => {
+    const moves = db.transactions.filter(
+      (t) => t.debtId === debt.id && t.id !== excludeTransactionId,
+    )
+    const paid = moves
+      .filter((t) => t.type === 'debt_repay' || t.type === 'debt_collect')
+      .reduce((sum, t) => sum + t.amount, 0)
+    const opening = moves.find((t) => t.type === 'debt_borrow' || t.type === 'debt_lend')
+    return {
+      ...debt,
+      paid,
+      remaining: debt.writtenOff ? 0 : Math.max(debt.amount - paid, 0),
+      accountId: opening?.accountId ?? null,
+    }
+  })
+}
+
+function debtsRoute(db: Store, method: string, id: string | undefined, body: unknown) {
+  if (!id && method === 'GET') return debtsWithTotals(db)
+  if (!id && method === 'POST') {
+    const { accountId, ...input } = parse(debtInputSchema, body)
+    if (accountId) {
+      const account = db.accounts.find((a) => a.id === accountId)
+      if (!account) throw new ApiError(400, 'invalid_account')
+      if (account.archived) throw new ApiError(400, 'archived_account')
+    }
+    const debt: StoredDebt = {
+      ...input,
+      note: input.note || null,
+      id: uuid(),
+      writtenOff: false,
+      createdAt: now(),
+    }
+    db.debts.push(debt)
+    if (accountId) {
+      db.transactions.push({
+        id: uuid(),
+        type: debt.direction === 'payable' ? 'debt_borrow' : 'debt_lend',
+        amount: debt.amount,
+        accountId,
+        toAccountId: null,
+        categoryId: null,
+        goalId: null,
+        debtId: debt.id,
+        date: debt.date,
+        note: null,
+        createdAt: now(),
+      })
+    }
+    return debtsWithTotals(db).find((d) => d.id === debt.id)
+  }
+  const debt = find(db.debts, id)
+  const current = debtsWithTotals(db).find((d) => d.id === debt.id)
+  if (method === 'PATCH') {
+    const { writtenOff, note, ...fields } = parse(debtUpdateSchema, body)
+    if (fields.amount !== undefined && fields.amount < (current?.paid ?? 0)) {
+      throw new ApiError(400, 'debt_below_paid')
+    }
+    Object.assign(
+      debt,
+      fields,
+      note === undefined ? {} : { note: note || null },
+      writtenOff === undefined ? {} : { writtenOff },
+    )
+    if (fields.amount !== undefined) {
+      for (const t of db.transactions) {
+        if (t.debtId === debt.id && (t.type === 'debt_borrow' || t.type === 'debt_lend')) {
+          t.amount = fields.amount
+        }
+      }
+    }
+    return debtsWithTotals(db).find((d) => d.id === debt.id)
+  }
+  if (method === 'DELETE') {
+    if ((current?.paid ?? 0) > 0) throw new ApiError(409, 'in_use')
+    db.transactions = db.transactions.filter((t) => t.debtId !== debt.id)
+    db.debts = db.debts.filter((d) => d.id !== debt.id)
+    return undefined
+  }
+  throw new ApiError(404, 'not_found')
 }
 
 // Savings goals
@@ -494,5 +598,106 @@ function seed(): Store {
     })
   }
 
-  return { accounts, categories, goals, transactions }
+  // Debts showing every state: a piutang partly paid back, a hutang due in a few days, an
+  // overdue piutang, a paylater hutang without a wallet and a settled hutang.
+  type DebtExample = {
+    person: string
+    direction: Debt['direction']
+    amount: number
+    daysAgo: number
+    dueIn: number | null
+    wallet: string | null
+    note: string | null
+    payments: [daysAgo: number, amount: number, wallet: string][]
+  }
+  const debtExamples: DebtExample[] = [
+    {
+      person: 'Budi',
+      direction: 'receivable',
+      amount: 1_500_000,
+      daysAgo: 40,
+      dueIn: 20,
+      wallet: 'BCA',
+      note: 'Modal jualan',
+      payments: [[10, 500_000, 'BCA']],
+    },
+    {
+      person: 'Kakak',
+      direction: 'payable',
+      amount: 2_000_000,
+      daysAgo: 60,
+      dueIn: 5,
+      wallet: 'BCA',
+      note: 'Servis motor',
+      payments: [[30, 1_000_000, 'BCA']],
+    },
+    {
+      person: 'Rina',
+      direction: 'receivable',
+      amount: 300_000,
+      daysAgo: 25,
+      dueIn: -10,
+      wallet: 'GoPay',
+      note: 'Patungan kado',
+      payments: [],
+    },
+    {
+      person: 'Paylater',
+      direction: 'payable',
+      amount: 900_000,
+      daysAgo: 15,
+      dueIn: 15,
+      wallet: null,
+      note: 'Beli headphone',
+      payments: [],
+    },
+    {
+      person: 'Andi',
+      direction: 'payable',
+      amount: 500_000,
+      daysAgo: 90,
+      dueIn: null,
+      wallet: 'Tunai',
+      note: null,
+      payments: [[70, 500_000, 'Tunai']],
+    },
+  ]
+  const debts: StoredDebt[] = []
+  for (const example of debtExamples) {
+    const debt: StoredDebt = {
+      id: uuid(),
+      direction: example.direction,
+      person: example.person,
+      amount: example.amount,
+      date: shiftDate(today, -example.daysAgo),
+      dueDate: example.dueIn === null ? null : shiftDate(today, example.dueIn),
+      note: example.note,
+      writtenOff: false,
+      createdAt: daysAgoIso(example.daysAgo),
+    }
+    debts.push(debt)
+    const payable = debt.direction === 'payable'
+    const move = (type: Transaction['type'], amount: number, wallet: string, ago: number) =>
+      transactions.push({
+        id: uuid(),
+        type,
+        amount,
+        accountId: account(wallet),
+        toAccountId: null,
+        categoryId: null,
+        goalId: null,
+        debtId: debt.id,
+        date: shiftDate(today, -ago),
+        note: null,
+        createdAt: daysAgoIso(ago),
+      })
+    if (example.wallet) {
+      move(payable ? 'debt_borrow' : 'debt_lend', debt.amount, example.wallet, example.daysAgo)
+    }
+    for (const [ago, amount, wallet] of example.payments) {
+      move(payable ? 'debt_repay' : 'debt_collect', amount, wallet, ago)
+    }
+  }
+
+  return { accounts, categories, goals, debts, transactions }
 }

@@ -1,6 +1,8 @@
 import {
   type Account,
   type Category,
+  type Debt,
+  debtStatus,
   goalProgress,
   type MonthlyTotal,
   monthsBetween,
@@ -158,5 +160,51 @@ describe('demo API savings', () => {
     await expect(move('saving_withdrawal', trip.balance + 100_001)).rejects.toSatisfy(
       (e) => e instanceof ApiError && e.message === 'insufficient_savings',
     )
+  })
+})
+
+describe('demo API debts', () => {
+  const debts = () => demoRequest<Debt[]>('/debts')
+
+  it('starts with debts in every state', async () => {
+    const today = toDateKey(new Date())
+    const status = Object.fromEntries((await debts()).map((d) => [d.person, debtStatus(d, today)]))
+    expect(status).toEqual({
+      Budi: 'open',
+      Kakak: 'due_soon',
+      Rina: 'overdue',
+      Paylater: 'open',
+      Andi: 'settled',
+    })
+    expect((await debts()).find((d) => d.person === 'Paylater')?.accountId).toBeNull()
+  })
+
+  it('takes payments like the server', async () => {
+    const { cash } = await lookups()
+    const budi = (await debts()).find((d) => d.person === 'Budi')
+    if (!budi) throw new Error('missing debt')
+    const collect = (amount: number) =>
+      post('/transactions', {
+        type: 'debt_collect',
+        amount,
+        accountId: cash.id,
+        debtId: budi.id,
+        date: '2026-11-15',
+      })
+
+    await collect(400_000)
+    expect((await debts()).find((d) => d.id === budi.id)?.remaining).toBe(budi.remaining - 400_000)
+    await expect(collect(budi.remaining)).rejects.toSatisfy(
+      (e) => e instanceof ApiError && e.message === 'debt_overpaid',
+    )
+  })
+
+  it('only changes an opening move through its debt', async () => {
+    const budi = (await debts()).find((d) => d.person === 'Budi')
+    const history = await demoRequest<Transaction[]>(`/transactions?debtId=${budi?.id}`)
+    const opening = history.find((t) => t.type === 'debt_lend')
+    await expect(
+      demoRequest(`/transactions/${opening?.id}`, { method: 'DELETE' }),
+    ).rejects.toSatisfy((e) => e instanceof ApiError && e.message === 'managed_by_debt')
   })
 })

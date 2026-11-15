@@ -20,6 +20,11 @@ const messages: Record<string, string> = {
   invalid_goal: 'Tabungan ini tidak ditemukan.',
   archived_goal: 'Tabungan ini sudah diarsipkan. Aktifkan lagi untuk mengisinya.',
   insufficient_savings: 'Isi tabungan tidak cukup untuk diculik sebanyak itu.',
+  invalid_debt: 'Hutang/piutang ini tidak ditemukan atau jenis pembayarannya tidak cocok.',
+  debt_closed: 'Hutang/piutang ini sudah ditutup. Batalkan dulu kalau masih ada pembayaran.',
+  debt_overpaid: 'Pembayaran melebihi sisa hutang/piutang.',
+  debt_below_paid: 'Jumlah tidak boleh lebih kecil dari yang sudah dibayar.',
+  managed_by_debt: 'Catatan ini diatur dari halaman hutang/piutangnya.',
   savings_already_used:
     'Sebagian uang dari catatan ini sudah diculik. Hapus dulu catatan culiknya, baru yang ini.',
   unauthorized: 'Sesi login berakhir. Silakan masuk lagi.',
