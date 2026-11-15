@@ -1,4 +1,10 @@
-import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  MutationCache,
+  onlineManager,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, MemoryRouter } from 'react-router'
@@ -7,6 +13,13 @@ import './index.css'
 import { meKey } from './lib/auth'
 import { isDemo } from './lib/demo'
 import { ApiError } from './lib/errors'
+import { setupPwa } from './lib/pwa'
+
+setupPwa()
+// TanStack Query assumes "online" until the first online/offline event. Start from the real state
+// so requests made while offline (e.g. opening the installed app) wait for the connection instead
+// of failing; they resume by themselves once the device is back online.
+onlineManager.setOnline(navigator.onLine)
 
 // The demo build may be opened from a file, any static host or a sandboxed frame, so it keeps
 // navigation in memory instead of touching the URL.

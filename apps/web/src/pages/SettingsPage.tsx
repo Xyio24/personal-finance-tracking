@@ -1,27 +1,30 @@
-import { ChevronRight, LoaderCircle, LogOut, type LucideIcon, Tags, Wallet } from 'lucide-react'
+import {
+  ChevronRight,
+  CircleCheck,
+  Download,
+  LoaderCircle,
+  LogOut,
+  type LucideIcon,
+  Share,
+  Tags,
+  Wallet,
+} from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Avatar } from '../components/Avatar'
 import { PageHeader } from '../components/PageHeader'
 import { useCurrentUser, useLogout } from '../lib/auth'
+import { isIos, isStandalone, useInstallPrompt } from '../lib/pwa'
 
-const menu: { label: string; description: string; icon: LucideIcon; to?: string }[] = [
-  {
-    label: 'Dompet',
-    description: 'Tunai, rekening bank, e-wallet',
-    icon: Wallet,
-    to: '/pengaturan/dompet',
-  },
-  {
-    label: 'Kategori',
-    description: 'Jenis pemasukan dan pengeluaran',
-    icon: Tags,
-    to: '/pengaturan/kategori',
-  },
-]
+const listClass =
+  'mx-4 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white dark:divide-slate-800 dark:bg-slate-900'
+const rowClass = 'flex w-full items-center gap-3 px-4 py-3 text-left'
+const pressableClass = `${rowClass} active:bg-slate-50 dark:active:bg-slate-800`
 
 export function SettingsPage() {
   const user = useCurrentUser()
   const logout = useLogout()
+  const { canInstall, install } = useInstallPrompt()
 
   return (
     <>
@@ -35,36 +38,56 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <ul className="mx-4 mt-4 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white dark:divide-slate-800 dark:bg-slate-900">
-        {menu.map(({ label, description, icon: Icon, to }) => {
-          const content = (
-            <>
-              <Icon className="size-5 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
-              <span className="min-w-0 flex-1">
-                <span className="block">{label}</span>
-                <span className="block text-xs text-slate-500 dark:text-slate-400">
-                  {description}
-                </span>
-              </span>
-              <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
-            </>
-          )
-          return (
-            <li key={label}>
-              {to ? (
-                <Link
-                  to={to}
-                  className="flex items-center gap-3 px-4 py-3 active:bg-slate-50 dark:active:bg-slate-800"
-                >
-                  {content}
-                </Link>
-              ) : (
-                <div className="flex items-center gap-3 px-4 py-3 opacity-50">{content}</div>
-              )}
-            </li>
-          )
-        })}
+      <ul className={`${listClass} mt-4`}>
+        <li>
+          <Link to="/pengaturan/dompet" className={pressableClass}>
+            <RowText icon={Wallet} label="Dompet" description="Tunai, rekening bank, e-wallet" />
+            <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
+          </Link>
+        </li>
+        <li>
+          <Link to="/pengaturan/kategori" className={pressableClass}>
+            <RowText icon={Tags} label="Kategori" description="Jenis pemasukan dan pengeluaran" />
+            <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
+          </Link>
+        </li>
       </ul>
+
+      <Section title="Aplikasi">
+        {isStandalone() ? (
+          <div className={rowClass}>
+            <RowText
+              icon={CircleCheck}
+              label="Sudah terpasang"
+              description="Kamu membukanya dari layar utama"
+            />
+          </div>
+        ) : canInstall ? (
+          <button type="button" onClick={install} className={pressableClass}>
+            <RowText
+              icon={Download}
+              label="Pasang di layar utama"
+              description="Buka seperti aplikasi biasa, tanpa bilah browser"
+            />
+          </button>
+        ) : isIos() ? (
+          <div className={rowClass}>
+            <RowText
+              icon={Share}
+              label="Pasang di layar utama"
+              description="Di Safari, tekan Bagikan lalu “Tambah ke Layar Utama”"
+            />
+          </div>
+        ) : (
+          <div className={rowClass}>
+            <RowText
+              icon={Download}
+              label="Pasang di layar utama"
+              description="Buka menu browser lalu pilih “Instal aplikasi” atau “Tambahkan ke layar utama”"
+            />
+          </div>
+        )}
+      </Section>
 
       <button
         type="button"
@@ -79,6 +102,37 @@ export function SettingsPage() {
         )}
         Keluar
       </button>
+    </>
+  )
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="mt-6" aria-label={title}>
+      <h2 className="mx-4 mb-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+        {title}
+      </h2>
+      <div className={listClass}>{children}</div>
+    </section>
+  )
+}
+
+function RowText({
+  icon: Icon,
+  label,
+  description,
+}: {
+  icon: LucideIcon
+  label: string
+  description: string
+}) {
+  return (
+    <>
+      <Icon className="size-5 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block">{label}</span>
+        <span className="block text-xs text-slate-500 dark:text-slate-400">{description}</span>
+      </span>
     </>
   )
 }

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { AppShell } from './components/AppShell'
+import { OfflineNotice } from './components/OfflineNotice'
 import { RequireAuth } from './components/RequireAuth'
 import { AccountsPage } from './pages/AccountsPage'
 import { CategoriesPage } from './pages/CategoriesPage'
@@ -16,26 +17,29 @@ import { TransactionsPage } from './pages/TransactionsPage'
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route element={<RequireAuth />}>
-        <Route element={<AppShell />}>
-          <Route index element={<HomePage />} />
-          <Route path="transaksi" element={<TransactionsPage />} />
-          <Route path="laporan" element={<ReportPage />} />
-          <Route path="tabungan" element={<SavingsPage />} />
-          <Route path="tabungan/:id" element={<GoalDetailPage />} />
-          <Route path="hutang" element={<DebtsPage />} />
-          <Route path="hutang/:id" element={<DebtDetailPage />} />
-          <Route path="pengaturan" element={<SettingsPage />} />
-          <Route path="pengaturan/dompet" element={<AccountsPage />} />
-          <Route path="pengaturan/kategori" element={<CategoriesPage />} />
+    <>
+      <OfflineNotice />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<RequireAuth />}>
+          <Route element={<AppShell />}>
+            <Route index element={<HomePage />} />
+            <Route path="transaksi" element={<TransactionsPage />} />
+            <Route path="laporan" element={<ReportPage />} />
+            <Route path="tabungan" element={<SavingsPage />} />
+            <Route path="tabungan/:id" element={<GoalDetailPage />} />
+            <Route path="hutang" element={<DebtsPage />} />
+            <Route path="hutang/:id" element={<DebtDetailPage />} />
+            <Route path="pengaturan" element={<SettingsPage />} />
+            <Route path="pengaturan/dompet" element={<AccountsPage />} />
+            <Route path="pengaturan/kategori" element={<CategoriesPage />} />
+          </Route>
+          {/* Full-screen forms, without the bottom navigation. */}
+          <Route path="transaksi/baru" element={<TransactionFormPage />} />
+          <Route path="transaksi/:id" element={<TransactionFormPage />} />
         </Route>
-        {/* Full-screen forms, without the bottom navigation. */}
-        <Route path="transaksi/baru" element={<TransactionFormPage />} />
-        <Route path="transaksi/:id" element={<TransactionFormPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }
