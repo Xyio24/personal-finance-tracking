@@ -2,7 +2,6 @@ import {
   type Account,
   type Category,
   isSavingsType,
-  shiftDate,
   type Transaction,
   type TransactionInput,
 } from '@finance/shared'
@@ -10,12 +9,13 @@ import { LoaderCircle, Trash2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { AmountInput } from '../components/AmountInput'
-import { AccountBadge, CategoryBadge } from '../components/Badges'
+import { CategoryBadge } from '../components/Badges'
 import { ConfirmSheet } from '../components/ConfirmSheet'
+import { AccountPicker, DateField } from '../components/Pickers'
 import { ListSkeleton, LoadError } from '../components/QueryState'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { HeaderIconButton, SubPageHeader } from '../components/SubPageHeader'
-import { chipClass, inputClass, labelClass, primaryButtonClass } from '../components/ui'
+import { inputClass, labelClass, primaryButtonClass } from '../components/ui'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
 import { useGoBack } from '../lib/navigation'
@@ -169,7 +169,7 @@ function TransactionForm({
   const save = useSaveTransaction()
   const remove = useDeleteTransaction()
   const goBack = useGoBack('/transaksi')
-  const today = todayKey()
+  const _today = todayKey()
 
   // Archived wallets and categories stay visible only when this entry already uses them.
   const usable = (item: { id: string; archived: boolean }, ...ids: string[]) =>
@@ -348,32 +348,7 @@ function TransactionForm({
           </>
         )}
 
-        <fieldset>
-          <legend className={labelClass}>Tanggal</legend>
-          <div className="flex gap-2">
-            {[
-              { label: 'Hari ini', date: today },
-              { label: 'Kemarin', date: shiftDate(today, -1) },
-            ].map((option) => (
-              <button
-                key={option.label}
-                type="button"
-                aria-pressed={draft.date === option.date}
-                onClick={() => set({ date: option.date })}
-                className={chipClass(draft.date === option.date)}
-              >
-                {option.label}
-              </button>
-            ))}
-            <input
-              type="date"
-              aria-label="Pilih tanggal"
-              value={draft.date}
-              onChange={(e) => e.target.value && set({ date: e.target.value })}
-              className={`${inputClass} h-10 min-w-0 flex-1 px-3 text-sm`}
-            />
-          </div>
-        </fieldset>
+        <DateField value={draft.date} onChange={(date) => set({ date })} />
 
         <div>
           <label htmlFor="note" className={labelClass}>
@@ -427,37 +402,5 @@ function TransactionForm({
         />
       )}
     </div>
-  )
-}
-
-function AccountPicker({
-  label,
-  accounts,
-  value,
-  onChange,
-}: {
-  label: string
-  accounts: Account[]
-  value: string
-  onChange: (id: string) => void
-}) {
-  return (
-    <fieldset>
-      <legend className={labelClass}>{label}</legend>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-        {accounts.map((account) => (
-          <button
-            key={account.id}
-            type="button"
-            aria-pressed={account.id === value}
-            onClick={() => onChange(account.id)}
-            className={`${chipClass(account.id === value)} pl-1.5`}
-          >
-            <AccountBadge type={account.type} size="sm" />
-            {account.name}
-          </button>
-        ))}
-      </div>
-    </fieldset>
   )
 }

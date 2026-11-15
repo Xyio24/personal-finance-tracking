@@ -1,15 +1,9 @@
-import {
-  CATEGORY_COLORS,
-  CATEGORY_ICONS,
-  type Category,
-  type CategoryColor,
-  type CategoryIcon,
-  type CategoryType,
-} from '@finance/shared'
+import type { Category, CategoryColor, CategoryIcon, CategoryType } from '@finance/shared'
 import { Archive, ArchiveRestore, ChevronRight, LoaderCircle, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { CategoryBadge } from '../components/Badges'
 import { ConfirmSheet } from '../components/ConfirmSheet'
+import { ColorPicker, IconPicker } from '../components/Pickers'
 import { ListSkeleton, LoadError } from '../components/QueryState'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { Sheet } from '../components/Sheet'
@@ -29,7 +23,6 @@ import {
   useDeleteCategory,
   useUpdateCategory,
 } from '../lib/queries'
-import { categoryColors, categoryIcons, colorNames } from '../lib/visuals'
 
 const typeOptions = [
   { value: 'expense', label: 'Pengeluaran' },
@@ -190,51 +183,8 @@ function CategoryForm({
         </div>
       </div>
 
-      <fieldset>
-        <legend className={labelClass}>Ikon</legend>
-        <div className="grid grid-cols-6 gap-2">
-          {CATEGORY_ICONS.map((key) => {
-            const Icon = categoryIcons[key]
-            const selected = key === icon
-            return (
-              <button
-                key={key}
-                type="button"
-                aria-label={`Ikon ${key}`}
-                aria-pressed={selected}
-                onClick={() => setIcon(key)}
-                className={`flex aspect-square items-center justify-center rounded-xl transition ${
-                  selected
-                    ? categoryColors[color].soft
-                    : 'bg-slate-100 text-slate-500 active:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'
-                } ${selected ? 'ring-2 ring-emerald-500' : ''}`}
-              >
-                <Icon className="size-5" aria-hidden />
-              </button>
-            )
-          })}
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend className={labelClass}>Warna</legend>
-        <div className="flex flex-wrap gap-2.5">
-          {CATEGORY_COLORS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              aria-label={colorNames[key]}
-              aria-pressed={key === color}
-              onClick={() => setColor(key)}
-              className={`size-9 rounded-full ${categoryColors[key].dot} ${
-                key === color
-                  ? 'ring-2 ring-slate-900 ring-offset-2 ring-offset-white dark:ring-white dark:ring-offset-slate-900'
-                  : ''
-              }`}
-            />
-          ))}
-        </div>
-      </fieldset>
+      <IconPicker value={icon} color={color} onChange={setIcon} />
+      <ColorPicker value={color} onChange={setColor} />
 
       {saveError && (
         <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
