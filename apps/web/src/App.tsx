@@ -8,6 +8,7 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { SavingsPage } from './pages/SavingsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { TransactionFormPage } from './pages/TransactionFormPage'
 import { TransactionsPage } from './pages/TransactionsPage'
 
 export function App() {
@@ -24,6 +25,9 @@ export function App() {
           <Route path="pengaturan/dompet" element={<AccountsPage />} />
           <Route path="pengaturan/kategori" element={<CategoriesPage />} />
         </Route>
+        {/* Full-screen forms, without the bottom navigation. */}
+        <Route path="transaksi/baru" element={<TransactionFormPage />} />
+        <Route path="transaksi/:id" element={<TransactionFormPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
