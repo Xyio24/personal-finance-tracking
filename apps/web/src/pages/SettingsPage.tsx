@@ -1,11 +1,17 @@
 import { ChevronRight, LoaderCircle, LogOut, type LucideIcon, Tags, Wallet } from 'lucide-react'
+import { Link } from 'react-router'
 import { Avatar } from '../components/Avatar'
 import { PageHeader } from '../components/PageHeader'
 import { useCurrentUser, useLogout } from '../lib/auth'
 
-const menu: { label: string; icon: LucideIcon }[] = [
-  { label: 'Dompet', icon: Wallet },
-  { label: 'Kategori', icon: Tags },
+const menu: { label: string; description: string; icon: LucideIcon; to?: string }[] = [
+  {
+    label: 'Dompet',
+    description: 'Tunai, rekening bank, e-wallet',
+    icon: Wallet,
+    to: '/pengaturan/dompet',
+  },
+  { label: 'Kategori', description: 'Segera hadir', icon: Tags },
 ]
 
 export function SettingsPage() {
@@ -25,14 +31,34 @@ export function SettingsPage() {
       </section>
 
       <ul className="mx-4 mt-4 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white dark:divide-slate-800 dark:bg-slate-900">
-        {menu.map(({ label, icon: Icon }) => (
-          <li key={label} className="flex items-center gap-3 px-4 py-3.5 text-slate-400">
-            <Icon className="size-5" aria-hidden />
-            <span className="flex-1">{label}</span>
-            <span className="text-xs">Fase 1</span>
-            <ChevronRight className="size-4" aria-hidden />
-          </li>
-        ))}
+        {menu.map(({ label, description, icon: Icon, to }) => {
+          const content = (
+            <>
+              <Icon className="size-5 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="block">{label}</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">
+                  {description}
+                </span>
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
+            </>
+          )
+          return (
+            <li key={label}>
+              {to ? (
+                <Link
+                  to={to}
+                  className="flex items-center gap-3 px-4 py-3 active:bg-slate-50 dark:active:bg-slate-800"
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div className="flex items-center gap-3 px-4 py-3 opacity-50">{content}</div>
+              )}
+            </li>
+          )
+        })}
       </ul>
 
       <button

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { AppShell } from './components/AppShell'
 import { RequireAuth } from './components/RequireAuth'
+import { AccountsPage } from './pages/AccountsPage'
 import { DebtsPage } from './pages/DebtsPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -19,6 +20,7 @@ export function App() {
           <Route path="tabungan" element={<SavingsPage />} />
           <Route path="hutang" element={<DebtsPage />} />
           <Route path="pengaturan" element={<SettingsPage />} />
+          <Route path="pengaturan/dompet" element={<AccountsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
