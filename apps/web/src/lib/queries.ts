@@ -111,8 +111,20 @@ export const useSaveTransaction = () =>
     [queryKeys.transactions, queryKeys.accounts],
   )
 
-export const useDeleteTransaction = () =>
-  useRefreshingMutation(
-    (id: string) => api<void>(`/transactions/${id}`, { method: 'DELETE' }),
-    [queryKeys.transactions, queryKeys.accounts],
-  )
+export function useDeleteTransaction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api<void>(`/transactions/${id}`, { method: 'DELETE' }),
+    // Refresh lists and balances, but not the deleted entry itself: its edit page is still on
+    // screen, and refetching it would replace the page with a "not found" error (and unmount
+    // the form before it can navigate back).
+    onSuccess: (_data, id) =>
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.transactions,
+          predicate: ({ queryKey }) => queryKey[1] !== 'one' || queryKey[2] !== id,
+        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.accounts }),
+      ]),
+  })
+}
