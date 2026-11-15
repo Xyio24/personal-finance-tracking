@@ -22,6 +22,8 @@ import { errorMessage } from '../lib/errors'
 import { formatDate, formatDayHeading, formatShare, todayKey } from '../lib/format'
 import { useGoBack } from '../lib/navigation'
 import {
+  setWrittenOff,
+  undoDelete,
   useAccounts,
   useDebtHistory,
   useDebts,
@@ -29,6 +31,7 @@ import {
   useDeleteTransaction,
   useUpdateDebt,
 } from '../lib/queries'
+import { toast, undoable } from '../lib/toast'
 
 const isOpening = (t: Transaction) => t.type === 'debt_borrow' || t.type === 'debt_lend'
 
@@ -340,7 +343,15 @@ export function DebtDetailPage() {
         pending={removeDebt.isPending}
         error={removeDebt.error ? errorMessage(removeDebt.error) : null}
         onConfirm={() =>
-          removeDebt.mutate({ id: debt.id, withTransactions: debt.paid > 0 }, { onSuccess: goBack })
+          removeDebt.mutate(
+            { id: debt.id, withTransactions: debt.paid > 0 },
+            {
+              onSuccess: () => {
+                toast(`${debtTitle(debt)} dihapus`)
+                goBack()
+              },
+            },
+          )
         }
         onClose={() => {
           setDeleting(false)
@@ -362,7 +373,14 @@ export function DebtDetailPage() {
         onConfirm={() =>
           update.mutate(
             { id: debt.id, writtenOff: true },
-            { onSuccess: () => setWritingOff(false) },
+            {
+              onSuccess: () => {
+                setWritingOff(false)
+                undoable(payable ? 'Sisa hutang dianggap lunas' : 'Sisa piutang diikhlaskan', () =>
+                  setWrittenOff(debt.id, false),
+                )
+              },
+            },
           )
         }
         onClose={() => {
@@ -384,7 +402,12 @@ export function DebtDetailPage() {
         error={removePayment.error ? errorMessage(removePayment.error) : null}
         onConfirm={() =>
           removingPayment &&
-          removePayment.mutate(removingPayment.id, { onSuccess: () => setRemovingPayment(null) })
+          removePayment.mutate(removingPayment.id, {
+            onSuccess: () => {
+              undoable('Pembayaran dihapus', () => undoDelete(removingPayment))
+              setRemovingPayment(null)
+            },
+          })
         }
         onClose={() => {
           setRemovingPayment(null)

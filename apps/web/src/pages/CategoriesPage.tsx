@@ -18,11 +18,13 @@ import {
 } from '../components/ui'
 import { errorMessage } from '../lib/errors'
 import {
+  setArchived,
   useCategories,
   useCreateCategory,
   useDeleteCategory,
   useUpdateCategory,
 } from '../lib/queries'
+import { toast, undoable } from '../lib/toast'
 
 const typeOptions = [
   { value: 'expense', label: 'Pengeluaran' },
@@ -205,7 +207,15 @@ function CategoryForm({
             onClick={() =>
               update.mutate(
                 { id: category.id, archived: !category.archived },
-                { onSuccess: onDone },
+                {
+                  onSuccess: () => {
+                    undoable(
+                      `"${category.name}" ${category.archived ? 'aktif lagi' : 'diarsipkan'}`,
+                      () => setArchived('categories', category.id, category.archived),
+                    )
+                    onDone()
+                  },
+                },
               )
             }
             className={secondaryButtonClass}
@@ -236,7 +246,14 @@ function CategoryForm({
           confirmLabel="Hapus"
           pending={remove.isPending}
           error={remove.error ? errorMessage(remove.error) : null}
-          onConfirm={() => remove.mutate(category.id, { onSuccess: onDone })}
+          onConfirm={() =>
+            remove.mutate(category.id, {
+              onSuccess: () => {
+                toast(`Kategori "${category.name}" dihapus`)
+                onDone()
+              },
+            })
+          }
           onClose={() => {
             setConfirmDelete(false)
             remove.reset()

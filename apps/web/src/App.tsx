@@ -4,6 +4,7 @@ import { NavigationEffects } from './components/NavigationEffects'
 import { OfflineNotice } from './components/OfflineNotice'
 import { PageFrame } from './components/PageFrame'
 import { RequireAuth } from './components/RequireAuth'
+import { Toaster } from './components/Toaster'
 import { AccountsPage } from './pages/AccountsPage'
 import { CategoriesPage } from './pages/CategoriesPage'
 import { DebtDetailPage } from './pages/DebtDetailPage'
@@ -45,6 +46,7 @@ export function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <NavigationEffects />
+      <Toaster />
     </>
   )
 }

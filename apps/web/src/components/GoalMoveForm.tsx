@@ -10,7 +10,8 @@ import { type FormEvent, useState } from 'react'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
 import { readLastAccount, rememberAccount } from '../lib/lastAccount'
-import { useSaveTransaction } from '../lib/queries'
+import { undoCreate, useSaveTransaction } from '../lib/queries'
+import { toast, undoable } from '../lib/toast'
 import { AmountInput } from './AmountInput'
 import { AccountPicker, DateField } from './Pickers'
 import { dangerButtonClass, inputClass, labelClass, primaryButtonClass } from './ui'
@@ -67,8 +68,17 @@ export function GoalMoveForm({
         input: { type, amount, accountId, goalId: goal.id, date, note: note.trim() || null },
       },
       {
-        onSuccess: () => {
+        onSuccess: (saved) => {
           rememberAccount(accountId)
+          if (move) toast('Perubahan disimpan')
+          else {
+            undoable(
+              isDeposit
+                ? `Isi ${formatRupiah(amount)} ke ${goal.name}`
+                : `Culik ${formatRupiah(amount)} dari ${goal.name} 🥷`,
+              () => undoCreate(saved.id),
+            )
+          }
           onDone()
         },
       },

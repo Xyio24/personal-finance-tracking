@@ -17,7 +17,14 @@ import {
   secondaryButtonClass,
 } from '../components/ui'
 import { errorMessage } from '../lib/errors'
-import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount } from '../lib/queries'
+import {
+  setArchived,
+  useAccounts,
+  useCreateAccount,
+  useDeleteAccount,
+  useUpdateAccount,
+} from '../lib/queries'
+import { toast, undoable } from '../lib/toast'
 import { accountTypes } from '../lib/visuals'
 
 type Editing = Account | 'new' | null
@@ -209,7 +216,18 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
             type="button"
             disabled={saving}
             onClick={() =>
-              update.mutate({ id: account.id, archived: !account.archived }, { onSuccess: onDone })
+              update.mutate(
+                { id: account.id, archived: !account.archived },
+                {
+                  onSuccess: () => {
+                    undoable(
+                      `"${account.name}" ${account.archived ? 'aktif lagi' : 'diarsipkan'}`,
+                      () => setArchived('accounts', account.id, account.archived),
+                    )
+                    onDone()
+                  },
+                },
+              )
             }
             className={secondaryButtonClass}
           >
@@ -239,7 +257,14 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
           confirmLabel="Hapus"
           pending={remove.isPending}
           error={remove.error ? errorMessage(remove.error) : null}
-          onConfirm={() => remove.mutate(account.id, { onSuccess: onDone })}
+          onConfirm={() =>
+            remove.mutate(account.id, {
+              onSuccess: () => {
+                toast(`Dompet "${account.name}" dihapus`)
+                onDone()
+              },
+            })
+          }
           onClose={() => {
             setConfirmDelete(false)
             remove.reset()

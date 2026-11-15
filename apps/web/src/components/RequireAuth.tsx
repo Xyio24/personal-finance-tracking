@@ -3,9 +3,17 @@ import { useMe } from '../lib/auth'
 import { Splash } from './Splash'
 
 export function RequireAuth() {
-  const { data: user, isPending, isError, refetch } = useMe()
+  const { data: user, isPending, isError, refetch, fetchStatus } = useMe()
 
-  if (isPending) return <Splash />
+  if (isPending) {
+    return (
+      <Splash>
+        {fetchStatus === 'paused' ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">Menunggu koneksi…</p>
+        ) : undefined}
+      </Splash>
+    )
+  }
 
   if (isError) {
     return (

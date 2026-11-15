@@ -7,7 +7,8 @@ import {
 import { Archive, ArchiveRestore, LoaderCircle, Trash2, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { errorMessage } from '../lib/errors'
-import { useCreateGoal, useUpdateGoal } from '../lib/queries'
+import { setArchived, useCreateGoal, useUpdateGoal } from '../lib/queries'
+import { undoable } from '../lib/toast'
 import { AmountInput } from './AmountInput'
 import { CategoryBadge } from './Badges'
 import { ColorPicker, IconPicker } from './Pickers'
@@ -163,7 +164,18 @@ export function GoalForm({
               type="button"
               disabled={saving}
               onClick={() =>
-                update.mutate({ id: goal.id, archived: !goal.archived }, { onSuccess: onDone })
+                update.mutate(
+                  { id: goal.id, archived: !goal.archived },
+                  {
+                    onSuccess: (saved) => {
+                      undoable(
+                        `"${goal.name}" ${goal.archived ? 'aktif lagi' : 'diarsipkan'}`,
+                        () => setArchived('savings', goal.id, goal.archived),
+                      )
+                      onDone(saved)
+                    },
+                  },
+                )
               }
               className={secondaryButtonClass}
             >

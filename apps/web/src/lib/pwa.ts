@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { isDemo } from './demo'
+import { toast } from './toast'
 
 /** Chromium's install prompt event (not in the DOM typings yet). */
 type InstallPromptEvent = Event & {
@@ -36,6 +37,16 @@ export function setupPwa() {
   })
 
   if (isDemo || !import.meta.env.PROD || !('serviceWorker' in navigator)) return
+  // An open app keeps running its old code after a deploy until it is reloaded: offer that.
+  // The very first install has no controller yet, so it shows nothing.
+  const hadController = navigator.serviceWorker.controller !== null
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return
+    toast('Versi baru siap', {
+      tone: 'info',
+      action: { label: 'Muat ulang', run: () => window.location.reload() },
+    })
+  })
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((error: unknown) => {
       console.warn('Service worker tidak bisa didaftarkan', error)

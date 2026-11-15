@@ -23,12 +23,15 @@ import { formatDate, todayKey } from '../lib/format'
 import { readLastAccount, rememberAccount } from '../lib/lastAccount'
 import { useGoBack } from '../lib/navigation'
 import {
+  undoCreate,
+  undoDelete,
   useAccounts,
   useCategories,
   useDeleteTransaction,
   useSaveTransaction,
   useTransaction,
 } from '../lib/queries'
+import { toast, undoable } from '../lib/toast'
 import { transactionTypes } from '../lib/visuals'
 
 /** The kinds this form records. Savings deposits/withdrawals have their own screens. */
@@ -199,8 +202,15 @@ function TransactionForm({
     save.mutate(
       { id: existing?.id, input },
       {
-        onSuccess: () => {
+        onSuccess: (saved) => {
           rememberAccount(accountId)
+          if (existing) toast('Perubahan disimpan')
+          else {
+            undoable(
+              `${transactionTypes[saved.type].label} ${formatRupiah(saved.amount)} dicatat`,
+              () => undoCreate(saved.id),
+            )
+          }
           goBack()
         },
       },
@@ -391,7 +401,14 @@ function TransactionForm({
           confirmLabel="Hapus"
           pending={remove.isPending}
           error={remove.error ? errorMessage(remove.error) : null}
-          onConfirm={() => remove.mutate(existing.id, { onSuccess: goBack })}
+          onConfirm={() =>
+            remove.mutate(existing.id, {
+              onSuccess: () => {
+                undoable('Transaksi dihapus', () => undoDelete(existing))
+                goBack()
+              },
+            })
+          }
           onClose={() => {
             setConfirmDelete(false)
             remove.reset()

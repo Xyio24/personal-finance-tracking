@@ -1,20 +1,14 @@
-import {
-  MutationCache,
-  onlineManager,
-  QueryCache,
-  QueryClient,
-  QueryClientProvider,
-} from '@tanstack/react-query'
+import { onlineManager, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, MemoryRouter } from 'react-router'
 import { App } from './App'
 import './index.css'
-import { meKey } from './lib/auth'
 import { isDemo } from './lib/demo'
-import { ApiError } from './lib/errors'
 import { setupNavigation } from './lib/navigation'
 import { setupPwa } from './lib/pwa'
+import { prefetchStartupData } from './lib/queries'
+import { queryClient } from './lib/queryClient'
 
 setupPwa()
 setupNavigation()
@@ -27,23 +21,9 @@ onlineManager.setOnline(navigator.onLine)
 // navigation in memory instead of touching the URL.
 const Router = isDemo ? MemoryRouter : BrowserRouter
 
-// A 401 anywhere means the session ended: forget the user so <RequireAuth> shows the login page.
-const onError = (error: Error) => {
-  if (error instanceof ApiError && error.status === 401) queryClient.setQueryData(meKey, null)
-}
-
-const queryClient = new QueryClient({
-  queryCache: new QueryCache({ onError }),
-  mutationCache: new MutationCache({ onError }),
-  defaultOptions: {
-    queries: {
-      staleTime: 30 * 1000,
-      // Retrying cannot fix a 4xx (bad input, missing data, expired session).
-      retry: (failureCount, error) =>
-        failureCount < 1 && !(error instanceof ApiError && error.status < 500),
-    },
-  },
-})
+// Load Home's data alongside the session check instead of after it: one round trip less on
+// every cold start. Without a session these simply fail with 401 and the login page shows.
+if (!isDemo) prefetchStartupData()
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Missing #root element')

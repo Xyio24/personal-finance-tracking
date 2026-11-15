@@ -27,6 +27,7 @@ import {
 } from '../lib/format'
 import { useGoBack } from '../lib/navigation'
 import {
+  undoDelete,
   useAccounts,
   useDeleteGoal,
   useDeleteTransaction,
@@ -34,6 +35,7 @@ import {
   useSavingsGoals,
   useUpdateGoal,
 } from '../lib/queries'
+import { toast, undoable } from '../lib/toast'
 
 export function GoalDetailPage() {
   const { id = '' } = useParams()
@@ -340,7 +342,15 @@ export function GoalDetailPage() {
         pending={removeGoal.isPending}
         error={removeGoal.error ? errorMessage(removeGoal.error) : null}
         onConfirm={() =>
-          removeGoal.mutate({ id: goal.id, withTransactions: hasMoves }, { onSuccess: goBack })
+          removeGoal.mutate(
+            { id: goal.id, withTransactions: hasMoves },
+            {
+              onSuccess: () => {
+                toast(`Tabungan "${goal.name}" dihapus`)
+                goBack()
+              },
+            },
+          )
         }
         onClose={() => {
           setDeleting(false)
@@ -360,7 +370,13 @@ export function GoalDetailPage() {
         pending={remove.isPending}
         error={remove.error ? errorMessage(remove.error) : null}
         onConfirm={() =>
-          removing && remove.mutate(removing.id, { onSuccess: () => setRemoving(null) })
+          removing &&
+          remove.mutate(removing.id, {
+            onSuccess: () => {
+              undoable('Catatan dihapus', () => undoDelete(removing))
+              setRemoving(null)
+            },
+          })
         }
         onClose={() => {
           setRemoving(null)

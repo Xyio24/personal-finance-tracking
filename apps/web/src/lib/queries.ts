@@ -1,29 +1,32 @@
-import type {
-  Account,
-  AccountInput,
-  AccountUpdate,
-  Category,
-  CategoryInput,
-  CategoryUpdate,
-  Debt,
-  DebtInput,
-  DebtUpdate,
-  GoalInput,
-  GoalUpdate,
-  MonthlyTotal,
-  SavingsGoal,
-  Transaction,
-  TransactionFilters,
-  TransactionInput,
+import {
+  type Account,
+  type AccountInput,
+  type AccountUpdate,
+  type Category,
+  type CategoryInput,
+  type CategoryUpdate,
+  type Debt,
+  type DebtInput,
+  type DebtUpdate,
+  type GoalInput,
+  type GoalUpdate,
+  type MonthlyTotal,
+  type SavingsGoal,
+  type Transaction,
+  type TransactionFilters,
+  type TransactionInput,
+  toMonthKey,
 } from '@finance/shared'
 import {
   keepPreviousData,
   type QueryKey,
+  queryOptions,
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import { api, jsonBody } from './api'
+import { queryClient } from './queryClient'
 
 export const queryKeys = {
   accounts: ['accounts'],
@@ -46,26 +49,47 @@ const toQuery = (params: Record<string, string | undefined>) =>
     Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])),
   ).toString()
 
+const accountsQuery = queryOptions({
+  queryKey: queryKeys.accounts,
+  queryFn: () => api<Account[]>('/accounts'),
+})
+const categoriesQuery = queryOptions({
+  queryKey: queryKeys.categories,
+  queryFn: () => api<Category[]>('/categories'),
+})
+const monthQuery = (month: string) =>
+  queryOptions({
+    queryKey: queryKeys.month(month),
+    queryFn: () => api<Transaction[]>(`/transactions?month=${month}`),
+  })
+const savingsQuery = queryOptions({
+  queryKey: queryKeys.savings,
+  queryFn: () => api<SavingsGoal[]>('/savings'),
+})
+const debtsQuery = queryOptions({ queryKey: queryKeys.debts, queryFn: () => api<Debt[]>('/debts') })
+
+/** Everything Home shows, requested at startup alongside the session check. */
+export function prefetchStartupData() {
+  void queryClient.prefetchQuery(accountsQuery)
+  void queryClient.prefetchQuery(categoriesQuery)
+  void queryClient.prefetchQuery(savingsQuery)
+  void queryClient.prefetchQuery(debtsQuery)
+  void queryClient.prefetchQuery(monthQuery(toMonthKey(new Date())))
+}
+
 export function useAccounts() {
-  return useQuery({ queryKey: queryKeys.accounts, queryFn: () => api<Account[]>('/accounts') })
+  return useQuery(accountsQuery)
 }
 
 export function useCategories() {
-  return useQuery({
-    queryKey: queryKeys.categories,
-    queryFn: () => api<Category[]>('/categories'),
-  })
+  return useQuery(categoriesQuery)
 }
 
 // Lists and reports keep showing the previous result while the next one loads (switching
 // months, typing a search), so the screen never flashes back to a skeleton.
 
 export function useMonthTransactions(month: string) {
-  return useQuery({
-    queryKey: queryKeys.month(month),
-    queryFn: () => api<Transaction[]>(`/transactions?month=${month}`),
-    placeholderData: keepPreviousData,
-  })
+  return useQuery({ ...monthQuery(month), placeholderData: keepPreviousData })
 }
 
 /** Search across all months; idle while `q` is empty. */
@@ -152,20 +176,86 @@ export const useDeleteCategory = () =>
 
 // Transactions — every change also moves account balances.
 
-export const useSaveTransaction = () =>
-  useRefreshingMutation(
-    ({ id, input }: { id?: string; input: TransactionInput }) =>
+/** Everything a transaction can change: lists, wallet balances, reports, goals and debts. */
+const moneyKeys = [
+  queryKeys.transactions,
+  queryKeys.accounts,
+  queryKeys.reports,
+  queryKeys.savings,
+  queryKeys.debts,
+] as const
+
+/** Refetch everything a money change touches, in the background. */
+export function refreshMoney(except?: (queryKey: QueryKey) => boolean) {
+  for (const queryKey of moneyKeys) {
+    void queryClient.invalidateQueries({
+      queryKey,
+      predicate: except ? (query) => !except(query.queryKey) : undefined,
+    })
+  }
+}
+
+/** Same order as the API: newest date first, then the most recently recorded. */
+const newestFirst = (a: Transaction, b: Transaction) =>
+  b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)
+
+/**
+ * Saving puts the entry into the month list right away, so the screen it returns to already
+ * shows it; balances and the rest refresh in the background a moment later.
+ */
+export function useSaveTransaction() {
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: TransactionInput }) =>
       id
         ? api<Transaction>(`/transactions/${id}`, jsonBody('PUT', input))
         : api<Transaction>('/transactions', jsonBody('POST', input)),
-    [
-      queryKeys.transactions,
-      queryKeys.accounts,
-      queryKeys.reports,
-      queryKeys.savings,
-      queryKeys.debts,
-    ],
-  )
+    onSuccess: (saved) => {
+      queryClient.setQueriesData<Transaction[]>({ queryKey: ['transactions', 'month'] }, (list) =>
+        list?.filter((t) => t.id !== saved.id),
+      )
+      queryClient.setQueryData<Transaction[]>(
+        queryKeys.month(toMonthKey(saved.date)),
+        (list) => list && [...list, saved].sort(newestFirst),
+      )
+      queryClient.setQueryData(queryKeys.transaction(saved.id), saved)
+      refreshMoney()
+    },
+  })
+}
+
+/** What to send to record a transaction again exactly as it was (undo of a delete). */
+export function transactionInputOf(t: Transaction): TransactionInput | null {
+  const common = { amount: t.amount, accountId: t.accountId, date: t.date, note: t.note }
+  switch (t.type) {
+    case 'income':
+    case 'expense':
+      return t.categoryId ? { ...common, type: t.type, categoryId: t.categoryId } : null
+    case 'transfer':
+      return t.toAccountId ? { ...common, type: t.type, toAccountId: t.toAccountId } : null
+    case 'saving_deposit':
+    case 'saving_withdrawal':
+      return t.goalId ? { ...common, type: t.type, goalId: t.goalId } : null
+    case 'debt_repay':
+    case 'debt_collect':
+      return t.debtId ? { ...common, type: t.type, debtId: t.debtId } : null
+    default:
+      return null // a debt's opening move only changes through the debt itself
+  }
+}
+
+/** Undo for "recorded": remove the entry again. */
+export async function undoCreate(id: string) {
+  await api<void>(`/transactions/${id}`, { method: 'DELETE' })
+  refreshMoney()
+}
+
+/** Undo for "deleted": record it again (it gets a new id). */
+export async function undoDelete(t: Transaction) {
+  const input = transactionInputOf(t)
+  if (!input) return
+  await api<Transaction>('/transactions', jsonBody('POST', input))
+  refreshMoney()
+}
 
 export function useDeleteTransaction() {
   const queryClient = useQueryClient()
@@ -192,7 +282,7 @@ export function useDeleteTransaction() {
 // refresh the goals.
 
 export function useSavingsGoals() {
-  return useQuery({ queryKey: queryKeys.savings, queryFn: () => api<SavingsGoal[]>('/savings') })
+  return useQuery(savingsQuery)
 }
 
 /** Every deposit and withdrawal of one goal, newest first. */
@@ -244,7 +334,7 @@ export function useDeleteGoal() {
 const debtRefresh = [queryKeys.debts, queryKeys.accounts, queryKeys.transactions] as const
 
 export function useDebts() {
-  return useQuery({ queryKey: queryKeys.debts, queryFn: () => api<Debt[]>('/debts') })
+  return useQuery(debtsQuery)
 }
 
 /** The opening move and every payment of one debt, newest first. */
@@ -279,4 +369,20 @@ export function useDeleteDebt() {
       for (const queryKey of debtRefresh) void queryClient.invalidateQueries({ queryKey })
     },
   })
+}
+
+/** Undo for archiving (or reactivating) a wallet, category or goal. */
+export async function setArchived(
+  resource: 'accounts' | 'categories' | 'savings',
+  id: string,
+  archived: boolean,
+) {
+  await api(`/${resource}/${id}`, jsonBody('PATCH', { archived }))
+  await queryClient.invalidateQueries({ queryKey: [resource] })
+}
+
+/** Undo for "Ikhlaskan" / "Dianggap lunas". */
+export async function setWrittenOff(id: string, writtenOff: boolean) {
+  await api(`/debts/${id}`, jsonBody('PATCH', { writtenOff }))
+  await queryClient.invalidateQueries({ queryKey: queryKeys.debts })
 }

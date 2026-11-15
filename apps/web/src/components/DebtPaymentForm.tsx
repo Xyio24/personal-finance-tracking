@@ -4,7 +4,8 @@ import { type FormEvent, useState } from 'react'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
 import { readLastAccount, rememberAccount } from '../lib/lastAccount'
-import { useSaveTransaction } from '../lib/queries'
+import { undoCreate, useSaveTransaction } from '../lib/queries'
+import { toast, undoable } from '../lib/toast'
 import { AmountInput } from './AmountInput'
 import { AccountPicker, DateField } from './Pickers'
 import { chipClass, dangerButtonClass, inputClass, labelClass, primaryButtonClass } from './ui'
@@ -60,8 +61,12 @@ export function DebtPaymentForm({
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: (saved) => {
           rememberAccount(accountId)
+          if (payment) toast('Pembayaran diperbarui')
+          else {
+            undoable(`Pembayaran ${formatRupiah(amount)} dicatat`, () => undoCreate(saved.id))
+          }
           onDone()
         },
       },
