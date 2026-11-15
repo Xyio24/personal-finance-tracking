@@ -156,4 +156,14 @@ export const transactionTypes: Record<
   expense: { label: 'Pengeluaran', amountClass: 'text-rose-600 dark:text-rose-400', sign: '−' },
   income: { label: 'Pemasukan', amountClass: 'text-emerald-600 dark:text-emerald-400', sign: '+' },
   transfer: { label: 'Transfer', amountClass: 'text-slate-600 dark:text-slate-300', sign: '' },
+  saving_deposit: {
+    label: 'Isi tabungan',
+    amountClass: 'text-slate-600 dark:text-slate-300',
+    sign: '',
+  },
+  saving_withdrawal: {
+    label: 'Culik tabungan',
+    amountClass: 'text-slate-600 dark:text-slate-300',
+    sign: '',
+  },
 }

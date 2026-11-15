@@ -85,6 +85,35 @@ export const categories = pgTable(
   (table) => [index('categories_user_id_idx').on(table.userId)],
 )
 
+/** Savings goals ("pos tabungan"). The amount saved is computed, never stored. */
+export const savingsGoals = pgTable(
+  'savings_goals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    icon: text('icon').notNull(),
+    color: text('color').notNull(),
+    /** Optional target; null for an open-ended pot. */
+    targetAmount: rupiah('target_amount'),
+    /** Optional local date to reach the target by. */
+    deadline: date('deadline', { mode: 'string' }),
+    /** Already saved before tracking started. */
+    initialAmount: rupiah('initial_amount').notNull().default(0),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index('savings_goals_user_id_idx').on(table.userId),
+    check(
+      'savings_goals_amounts',
+      sql`(${table.targetAmount} is null or ${table.targetAmount} > 0) and ${table.initialAmount} >= 0`,
+    ),
+  ],
+)
+
 export const transactions = pgTable(
   'transactions',
   {
@@ -94,7 +123,10 @@ export const transactions = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     type: transactionType('type').notNull(),
     amount: rupiah('amount').notNull(),
-    /** Income lands here; expenses and transfers leave from here. */
+    /**
+     * Income and savings withdrawals land here; expenses, transfers and savings deposits leave
+     * from here.
+     */
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id),
@@ -102,6 +134,8 @@ export const transactions = pgTable(
     toAccountId: uuid('to_account_id').references(() => accounts.id),
     /** Income and expense only. */
     categoryId: uuid('category_id').references(() => categories.id),
+    /** Savings deposits and withdrawals only. */
+    goalId: uuid('goal_id').references(() => savingsGoals.id),
     /** Local calendar date chosen by the user (no time zone). */
     date: date('date', { mode: 'string' }).notNull(),
     note: text('note'),
@@ -112,12 +146,16 @@ export const transactions = pgTable(
     index('transactions_account_idx').on(table.accountId),
     index('transactions_to_account_idx').on(table.toAccountId),
     index('transactions_category_idx').on(table.categoryId),
+    index('transactions_goal_idx').on(table.goalId),
     check('transactions_amount_positive', sql`${table.amount} > 0`),
-    // The database itself refuses half-filled rows, whatever the API does.
+    // The database itself refuses half-filled rows, whatever the API does. The type is
+    // compared as text: migrations run in one transaction, and a freshly added enum value
+    // cannot be used as an enum inside the transaction that adds it.
     check(
       'transactions_shape',
-      sql`(${table.type} = 'transfer' and ${table.toAccountId} is not null and ${table.categoryId} is null and ${table.toAccountId} <> ${table.accountId})
-        or (${table.type} <> 'transfer' and ${table.toAccountId} is null and ${table.categoryId} is not null)`,
+      sql`(${table.type}::text = 'transfer' and ${table.toAccountId} is not null and ${table.categoryId} is null and ${table.goalId} is null and ${table.toAccountId} <> ${table.accountId})
+        or (${table.type}::text in ('income', 'expense') and ${table.toAccountId} is null and ${table.categoryId} is not null and ${table.goalId} is null)
+        or (${table.type}::text in ('saving_deposit', 'saving_withdrawal') and ${table.toAccountId} is null and ${table.categoryId} is null and ${table.goalId} is not null)`,
     ),
   ],
 )
@@ -127,3 +165,4 @@ export type SessionRow = typeof sessions.$inferSelect
 export type AccountRow = typeof accounts.$inferSelect
 export type CategoryRow = typeof categories.$inferSelect
 export type TransactionRow = typeof transactions.$inferSelect
+export type SavingsGoalRow = typeof savingsGoals.$inferSelect

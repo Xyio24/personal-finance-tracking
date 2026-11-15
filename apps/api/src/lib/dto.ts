@@ -1,5 +1,12 @@
-import type { Account, Category, CategoryColor, CategoryIcon, Transaction } from '@finance/shared'
-import type { AccountRow, CategoryRow, TransactionRow } from '../db/schema'
+import type {
+  Account,
+  Category,
+  CategoryColor,
+  CategoryIcon,
+  SavingsGoal,
+  Transaction,
+} from '@finance/shared'
+import type { AccountRow, CategoryRow, SavingsGoalRow, TransactionRow } from '../db/schema'
 
 // Database rows -> the JSON shapes in @finance/shared. Internal columns (user_id, sort order,
 // timestamps nobody needs) stay on the server.
@@ -37,8 +44,25 @@ export function toTransaction(row: TransactionRow): Transaction {
     accountId: row.accountId,
     toAccountId: row.toAccountId,
     categoryId: row.categoryId,
+    goalId: row.goalId,
     date: row.date,
     note: row.note,
+    createdAt: row.createdAt.toISOString(),
+  }
+}
+
+export function toGoal(row: SavingsGoalRow, balance: number, savedLast90Days: number): SavingsGoal {
+  return {
+    id: row.id,
+    name: row.name,
+    icon: row.icon as CategoryIcon,
+    color: row.color as CategoryColor,
+    targetAmount: row.targetAmount,
+    deadline: row.deadline,
+    initialAmount: row.initialAmount,
+    balance,
+    savedLast90Days,
+    archived: row.archivedAt !== null,
     createdAt: row.createdAt.toISOString(),
   }
 }

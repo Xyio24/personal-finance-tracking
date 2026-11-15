@@ -48,6 +48,11 @@ export function fromDateKey(key: string): Date {
   return new Date(year, month - 1, day)
 }
 
+/** Whole days from one "YYYY-MM-DD" key to another (negative when `to` is earlier). */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((fromDateKey(to).getTime() - fromDateKey(from).getTime()) / 86_400_000)
+}
+
 /** Add days to a "YYYY-MM-DD" key. */
 export function shiftDate(key: string, days: number): string {
   const date = fromDateKey(key)

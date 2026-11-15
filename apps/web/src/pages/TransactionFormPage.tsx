@@ -1,15 +1,14 @@
 import {
   type Account,
   type Category,
+  isSavingsType,
   shiftDate,
-  TRANSACTION_TYPES,
   type Transaction,
   type TransactionInput,
-  type TransactionType,
 } from '@finance/shared'
 import { LoaderCircle, Trash2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router'
 import { AmountInput } from '../components/AmountInput'
 import { AccountBadge, CategoryBadge } from '../components/Badges'
 import { ConfirmSheet } from '../components/ConfirmSheet'
@@ -28,6 +27,10 @@ import {
   useTransaction,
 } from '../lib/queries'
 import { transactionTypes } from '../lib/visuals'
+
+/** The kinds this form records. Savings deposits/withdrawals have their own screens. */
+const FORM_TYPES = ['expense', 'income', 'transfer'] as const
+type FormType = (typeof FORM_TYPES)[number]
 
 /** Create (/transaksi/baru?type=expense) or edit (/transaksi/:id) a transaction. */
 export function TransactionFormPage() {
@@ -55,8 +58,13 @@ export function TransactionFormPage() {
     )
   }
 
-  const requested = params.get('type') as TransactionType | null
-  const type = requested && TRANSACTION_TYPES.includes(requested) ? requested : 'expense'
+  // Savings entries are managed on their goal's page.
+  if (transaction.data && isSavingsType(transaction.data.type)) {
+    return <Navigate to={`/tabungan/${transaction.data.goalId}`} replace />
+  }
+
+  const requested = params.get('type') as FormType | null
+  const type = requested && FORM_TYPES.includes(requested) ? requested : 'expense'
 
   return (
     <TransactionForm
@@ -97,7 +105,7 @@ const rememberAccount = (id: string) => {
 }
 
 type Draft = {
-  type: TransactionType
+  type: FormType
   amount: number
   accountId: string
   toAccountId: string
@@ -108,12 +116,12 @@ type Draft = {
 
 function initialDraft(
   existing: Transaction | undefined,
-  type: TransactionType,
+  type: FormType,
   accounts: Account[],
 ): Draft {
   if (existing) {
     return {
-      type: existing.type,
+      type: existing.type as FormType, // savings entries never reach this form
       amount: existing.amount,
       accountId: existing.accountId,
       toAccountId: existing.toAccountId ?? '',
@@ -150,7 +158,7 @@ function TransactionForm({
   categories,
 }: {
   existing: Transaction | undefined
-  initialType: TransactionType
+  initialType: FormType
   accounts: Account[]
   categories: Category[]
 }) {
@@ -183,7 +191,7 @@ function TransactionForm({
       ? toAccountId !== '' && toAccountId !== accountId
       : categoryChoices.some((c) => c.id === draft.categoryId))
 
-  function changeType(type: TransactionType) {
+  function changeType(type: FormType) {
     const keepCategory = categories.some((c) => c.id === draft.categoryId && c.type === type)
     set({ type, categoryId: keepCategory ? draft.categoryId : '' })
   }

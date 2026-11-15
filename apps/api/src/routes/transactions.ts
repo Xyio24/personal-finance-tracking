@@ -7,7 +7,7 @@ import {
 import { and, desc, eq, gte, ilike, lt, or, type SQL } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { db } from '../db/client'
-import { categories, transactions } from '../db/schema'
+import { categories, savingsGoals, transactions } from '../db/schema'
 import { toTransaction } from '../lib/dto'
 import { apiError, idParam, validate } from '../lib/validate'
 import { type AuthEnv, requireAuth } from '../middleware/auth'
@@ -21,11 +21,12 @@ transactionRoutes.use(requireAuth)
 const likeEscape = (text: string) => text.replace(/[\\%_]/g, (char) => `\\${char}`)
 
 /**
- * Newest first. Either one month (?month=YYYY-MM) or a search across all months (?q=…, at
- * most SEARCH_LIMIT rows); ?type, ?categoryId and ?accountId narrow either.
+ * Newest first. One month (?month=YYYY-MM), a search across all months (?q=…, at most
+ * SEARCH_LIMIT rows) or one savings goal's history (?goalId=…); ?type, ?categoryId,
+ * ?accountId and ?goalId narrow any of them.
  */
 transactionRoutes.get('/', validate('query', transactionListQuerySchema), async (c) => {
-  const { month, q, type, categoryId, accountId } = c.req.valid('query')
+  const { month, q, type, categoryId, accountId, goalId } = c.req.valid('query')
 
   const conditions: (SQL | undefined)[] = [eq(transactions.userId, c.get('user').id)]
   if (month) {
@@ -34,6 +35,7 @@ transactionRoutes.get('/', validate('query', transactionListQuerySchema), async 
   }
   if (type) conditions.push(eq(transactions.type, type))
   if (categoryId) conditions.push(eq(transactions.categoryId, categoryId))
+  if (goalId) conditions.push(eq(transactions.goalId, goalId))
   if (accountId) {
     conditions.push(
       or(eq(transactions.accountId, accountId), eq(transactions.toAccountId, accountId)),
@@ -41,16 +43,24 @@ transactionRoutes.get('/', validate('query', transactionListQuerySchema), async 
   }
   if (q) {
     const pattern = `%${likeEscape(q)}%`
-    conditions.push(or(ilike(transactions.note, pattern), ilike(categories.name, pattern)))
+    conditions.push(
+      or(
+        ilike(transactions.note, pattern),
+        ilike(categories.name, pattern),
+        ilike(savingsGoals.name, pattern),
+      ),
+    )
   }
 
   const rows = await db
     .select({ transaction: transactions })
     .from(transactions)
     .leftJoin(categories, eq(categories.id, transactions.categoryId))
+    .leftJoin(savingsGoals, eq(savingsGoals.id, transactions.goalId))
     .where(and(...conditions))
     .orderBy(desc(transactions.date), desc(transactions.createdAt))
-    .limit(month ? 10_000 : SEARCH_LIMIT)
+    // A month or a goal history is complete; a free-text search returns the newest matches.
+    .limit(month || (goalId && !q) ? 10_000 : SEARCH_LIMIT)
   return c.json(rows.map((row) => toTransaction(row.transaction)))
 })
 

@@ -211,7 +211,9 @@ function toValues(input: TransactionInput) {
     amount: input.amount,
     accountId: input.accountId,
     toAccountId: input.type === 'transfer' ? input.toAccountId : null,
-    categoryId: input.type === 'transfer' ? null : input.categoryId,
+    categoryId: input.type === 'income' || input.type === 'expense' ? input.categoryId : null,
+    goalId:
+      input.type === 'saving_deposit' || input.type === 'saving_withdrawal' ? input.goalId : null,
     date: input.date,
     note: input.note || null,
   }
@@ -225,12 +227,16 @@ function checkReferences(db: Store, input: TransactionInput, existing?: Transact
     if (!account) throw new ApiError(400, 'invalid_account')
     if (account.archived && !kept.has(account.id)) throw new ApiError(400, 'archived_account')
   }
-  if (input.type !== 'transfer') {
+  if (input.type === 'income' || input.type === 'expense') {
     const category = db.categories.find((c) => c.id === input.categoryId)
     if (!category || category.type !== input.type) throw new ApiError(400, 'invalid_category')
     if (category.archived && category.id !== existing?.categoryId) {
       throw new ApiError(400, 'archived_category')
     }
+  }
+  // Savings goals arrive in the demo together with the savings screens.
+  if (input.type === 'saving_deposit' || input.type === 'saving_withdrawal') {
+    throw new ApiError(400, 'invalid_goal')
   }
 }
 
@@ -339,6 +345,7 @@ function seed(): Store {
     type,
     amount,
     accountId: account(from),
+    goalId: null,
     date: shiftDate(today, -daysAgo),
     note,
     // Later in the list = earlier in the day, so same-day entries keep a stable order.

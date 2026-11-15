@@ -69,6 +69,7 @@ describe('matchesFilters', () => {
     categoryId: null,
     accountId: 'bank',
     toAccountId: 'cash',
+    goalId: null,
   } as const
   it('matches a wallet on either side of a transfer', () => {
     expect(matchesFilters(transfer, { accountId: 'cash' })).toBe(true)

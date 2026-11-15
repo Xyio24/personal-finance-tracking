@@ -1,8 +1,9 @@
 import type { TransactionInput } from '@finance/shared'
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../db/client'
-import { accounts, categories, type TransactionRow } from '../db/schema'
+import { accounts, categories, savingsGoals, type TransactionRow } from '../db/schema'
 import type { ApiErrorCode } from '../lib/validate'
+import { goalBalance } from './savings'
 
 /** Column values for a transaction row; fields that don't apply to the type are cleared. */
 export function toTransactionValues(input: TransactionInput) {
@@ -11,16 +12,19 @@ export function toTransactionValues(input: TransactionInput) {
     amount: input.amount,
     accountId: input.accountId,
     toAccountId: input.type === 'transfer' ? input.toAccountId : null,
-    categoryId: input.type === 'transfer' ? null : input.categoryId,
+    categoryId: input.type === 'income' || input.type === 'expense' ? input.categoryId : null,
+    goalId:
+      input.type === 'saving_deposit' || input.type === 'saving_withdrawal' ? input.goalId : null,
     date: input.date,
     note: input.note || null,
   }
 }
 
 /**
- * Checks that the accounts and category belong to the user and fit the transaction.
- * Archived ones are refused, except those the transaction being edited already uses, so old
- * entries stay editable after an account or category is retired.
+ * Checks that the wallets, category and savings goal belong to the user and fit the
+ * transaction. Archived ones are refused, except those the transaction being edited already
+ * uses, so old entries stay editable after something is retired. A withdrawal ("culik") can
+ * never take out more than the goal holds.
  */
 export async function checkReferences(
   userId: string,
@@ -40,13 +44,26 @@ export async function checkReferences(
     return 'archived_account'
   }
 
-  if (input.type !== 'transfer') {
+  if (input.type === 'income' || input.type === 'expense') {
     const [category] = await db
       .select({ id: categories.id, type: categories.type, archivedAt: categories.archivedAt })
       .from(categories)
       .where(and(eq(categories.userId, userId), eq(categories.id, input.categoryId)))
     if (!category || category.type !== input.type) return 'invalid_category'
     if (category.archivedAt && category.id !== existing?.categoryId) return 'archived_category'
+  }
+
+  if (input.type === 'saving_deposit' || input.type === 'saving_withdrawal') {
+    const [goal] = await db
+      .select({ id: savingsGoals.id, archivedAt: savingsGoals.archivedAt })
+      .from(savingsGoals)
+      .where(and(eq(savingsGoals.userId, userId), eq(savingsGoals.id, input.goalId)))
+    if (!goal) return 'invalid_goal'
+    if (goal.archivedAt && goal.id !== existing?.goalId) return 'archived_goal'
+    if (input.type === 'saving_withdrawal') {
+      const available = await goalBalance(goal.id, existing?.id)
+      if (input.amount > available) return 'insufficient_savings'
+    }
   }
 
   return null
