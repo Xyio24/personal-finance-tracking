@@ -33,12 +33,13 @@ function DeltaLine({ delta }: { delta: Delta }) {
   const Icon = up ? TrendingUp : TrendingDown
   return (
     <p
-      className={`mt-1 flex items-center gap-1 text-xs ${
+      className={`mt-1 flex items-start gap-1 text-xs leading-snug ${
         good ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
       }`}
     >
-      <Icon className="size-3.5 shrink-0" aria-hidden />
-      <span className="truncate">
+      <Icon className="mt-px size-3.5 shrink-0" aria-hidden />
+      {/* Wraps instead of truncating: what it is compared with is the important part. */}
+      <span>
         {formatShare(Math.abs(delta.change))} {up ? 'lebih tinggi' : 'lebih rendah'} dari{' '}
         {delta.versus}
       </span>
