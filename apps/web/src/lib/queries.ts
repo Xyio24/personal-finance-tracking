@@ -216,14 +216,23 @@ export const useUpdateGoal = () =>
     [queryKeys.savings],
   )
 
+/** What a delete takes along: `withTransactions` also removes the record's isi/culik or payments. */
+type DeleteVariables = { id: string; withTransactions?: boolean }
+const deletePath = (base: string, { id, withTransactions }: DeleteVariables) =>
+  `${base}/${id}${withTransactions ? '?withTransactions=true' : ''}`
+
 export function useDeleteGoal() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api<void>(`/savings/${id}`, { method: 'DELETE' }),
+    mutationFn: (variables: DeleteVariables) =>
+      api<void>(deletePath('/savings', variables), { method: 'DELETE' }),
     // Refresh without waiting: the caller navigates away from the deleted goal's page first,
     // instead of that page re-rendering as "not found" (and unmounting before it can leave).
+    // Deleting its isi/culik moves wallet money back, so wallets and lists refresh too.
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.savings })
+      for (const queryKey of [queryKeys.savings, queryKeys.accounts, queryKeys.transactions]) {
+        void queryClient.invalidateQueries({ queryKey })
+      }
     },
   })
 }
@@ -262,7 +271,8 @@ export const useUpdateDebt = () =>
 export function useDeleteDebt() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api<void>(`/debts/${id}`, { method: 'DELETE' }),
+    mutationFn: (variables: DeleteVariables) =>
+      api<void>(deletePath('/debts', variables), { method: 'DELETE' }),
     // Like goals: refresh without waiting so the caller can leave the deleted debt's page
     // before it would re-render as "not found".
     onSuccess: () => {

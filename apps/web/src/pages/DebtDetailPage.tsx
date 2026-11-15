@@ -1,5 +1,13 @@
 import { daysBetween, debtStatus, formatRupiah, type Transaction } from '@finance/shared'
-import { ArrowDownLeft, ArrowUpRight, HeartHandshake, Pencil, Undo2 } from 'lucide-react'
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ChevronRight,
+  HeartHandshake,
+  Pencil,
+  Trash2,
+  Undo2,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ConfirmSheet } from '../components/ConfirmSheet'
@@ -16,9 +24,12 @@ import {
   useAccounts,
   useDebtHistory,
   useDebts,
+  useDeleteDebt,
   useDeleteTransaction,
   useUpdateDebt,
 } from '../lib/queries'
+
+const isOpening = (t: Transaction) => t.type === 'debt_borrow' || t.type === 'debt_lend'
 
 export function DebtDetailPage() {
   const { id = '' } = useParams()
@@ -27,12 +38,15 @@ export function DebtDetailPage() {
   const accounts = useAccounts()
   const history = useDebtHistory(id)
   const update = useUpdateDebt()
-  const remove = useDeleteTransaction()
+  const removeDebt = useDeleteDebt()
+  const removePayment = useDeleteTransaction()
 
   const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [paying, setPaying] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<Transaction | null>(null)
+  const [removingPayment, setRemovingPayment] = useState<Transaction | null>(null)
   const [writingOff, setWritingOff] = useState(false)
-  const [removing, setRemoving] = useState<Transaction | null>(null)
 
   const debt = debts.data?.find((d) => d.id === id)
   const failed = [debts, accounts].find((q) => q.isError)
@@ -66,6 +80,19 @@ export function DebtDetailPage() {
       ? (accounts.data.find((a) => a.id === accountId)?.name ?? 'Dompet terhapus')
       : 'Tanpa dompet'
   const daysLeft = debt.dueDate ? daysBetween(today, debt.dueDate) : null
+  const paymentCount = history.data?.filter((t) => !isOpening(t)).length
+
+  // Spell out everything a delete takes along, so nothing disappears by surprise.
+  const deleteMessage = [
+    `${debtTitle(debt)} sebesar ${formatRupiah(debt.amount)} akan dihapus permanen.`,
+    debt.accountId &&
+      `Uang yang tercatat ${payable ? 'masuk ke' : 'keluar dari'} ${walletName(debt.accountId)} saat itu ikut dibatalkan.`,
+    debt.paid > 0 &&
+      `${paymentCount ? `${paymentCount} pembayaran` : 'Semua pembayarannya'} (total ${formatRupiah(debt.paid)}) juga ikut terhapus.`,
+    (debt.accountId || debt.paid > 0) && 'Saldo dompet dihitung ulang.',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <>
@@ -73,9 +100,17 @@ export function DebtDetailPage() {
         title={debt.person}
         backTo="/hutang"
         action={
-          <HeaderIconButton label="Ubah catatan" onClick={() => setEditing(true)}>
-            <Pencil className="size-5" aria-hidden />
-          </HeaderIconButton>
+          <>
+            <HeaderIconButton
+              label={`Hapus ${payable ? 'hutang' : 'piutang'}`}
+              onClick={() => setDeleting(true)}
+            >
+              <Trash2 className="size-5" aria-hidden />
+            </HeaderIconButton>
+            <HeaderIconButton label="Ubah catatan" onClick={() => setEditing(true)}>
+              <Pencil className="size-5" aria-hidden />
+            </HeaderIconButton>
+          </>
         }
       />
 
@@ -137,6 +172,11 @@ export function DebtDetailPage() {
               ? 'Sisa hutang ini dianggap lunas tanpa uang berpindah.'
               : 'Sisa piutang ini sudah diikhlaskan.'}
           </p>
+          {update.error && !writingOff && (
+            <p role="alert" className="mt-2 text-rose-600 dark:text-rose-400">
+              {errorMessage(update.error)}
+            </p>
+          )}
           <button
             type="button"
             disabled={update.isPending}
@@ -173,9 +213,12 @@ export function DebtDetailPage() {
       )}
 
       <section className="mt-6" aria-labelledby="debt-history">
-        <h2 id="debt-history" className="mx-4 mb-2 font-semibold">
+        <h2 id="debt-history" className="mx-4 font-semibold">
           Riwayat
         </h2>
+        <p className="mx-4 mb-2 text-xs text-slate-500 dark:text-slate-400">
+          Ketuk catatan untuk mengubah atau menghapusnya.
+        </p>
         {history.isError ? (
           <LoadError error={history.error} onRetry={() => history.refetch()} />
         ) : !history.data ? (
@@ -192,7 +235,7 @@ export function DebtDetailPage() {
             className={`mx-4 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800 ${cardClass}`}
           >
             {history.data.map((t) => {
-              const opening = t.type === 'debt_borrow' || t.type === 'debt_lend'
+              const opening = isOpening(t)
               const into = t.type === 'debt_borrow' || t.type === 'debt_collect'
               const title = opening ? (payable ? 'Dipinjam' : 'Dipinjamkan') : 'Pembayaran'
               const detail = [
@@ -202,47 +245,40 @@ export function DebtDetailPage() {
               ]
                 .filter(Boolean)
                 .join(' · ')
-              const row = (
-                <>
-                  <span
-                    aria-hidden
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
-                      into
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300'
-                        : 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'
-                    }`}
-                  >
-                    {into ? (
-                      <ArrowDownLeft className="size-5" />
-                    ) : (
-                      <ArrowUpRight className="size-5" />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-medium">{title}</span>
-                    <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                      {detail}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums">
-                    {formatRupiah(t.amount)}
-                  </span>
-                </>
-              )
               return (
                 <li key={t.id}>
-                  {/* The opening move changes through the debt itself (edit button above). */}
-                  {opening ? (
-                    <div className="flex items-center gap-3 px-4 py-3">{row}</div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setRemoving(t)}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800"
+                  {/* The opening move belongs to the debt itself, so it opens the debt's form. */}
+                  <button
+                    type="button"
+                    onClick={() => (opening ? setEditing(true) : setEditingPayment(t))}
+                    aria-label={`${opening ? 'Ubah catatan' : 'Ubah pembayaran'} ${formatRupiah(t.amount)}, ${formatDate(t.date)}`}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800"
+                  >
+                    <span
+                      aria-hidden
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
+                        into
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300'
+                          : 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'
+                      }`}
                     >
-                      {row}
-                    </button>
-                  )}
+                      {into ? (
+                        <ArrowDownLeft className="size-5" />
+                      ) : (
+                        <ArrowUpRight className="size-5" />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">{title}</span>
+                      <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                        {detail}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatRupiah(t.amount)}
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
+                  </button>
                 </li>
               )
             })}
@@ -260,18 +296,57 @@ export function DebtDetailPage() {
         )}
       </Sheet>
 
+      <Sheet
+        open={editingPayment !== null}
+        onClose={() => setEditingPayment(null)}
+        title="Ubah pembayaran"
+      >
+        {editingPayment && (
+          <DebtPaymentForm
+            debt={debt}
+            accounts={accounts.data}
+            payment={editingPayment}
+            onDone={() => setEditingPayment(null)}
+            onDelete={() => {
+              setRemovingPayment(editingPayment)
+              setEditingPayment(null)
+            }}
+          />
+        )}
+      </Sheet>
+
       <Sheet open={editing} onClose={() => setEditing(false)} title="Ubah catatan">
         {editing && (
           <DebtForm
             debt={debt}
             accounts={accounts.data}
-            onDone={(saved) => {
+            onDone={() => setEditing(false)}
+            onDelete={() => {
               setEditing(false)
-              if (!saved) navigate('/hutang', { replace: true })
+              setDeleting(true)
             }}
           />
         )}
       </Sheet>
+
+      <ConfirmSheet
+        open={deleting}
+        title={`Hapus ${payable ? 'hutang' : 'piutang'} ini?`}
+        message={deleteMessage}
+        confirmLabel="Hapus"
+        pending={removeDebt.isPending}
+        error={removeDebt.error ? errorMessage(removeDebt.error) : null}
+        onConfirm={() =>
+          removeDebt.mutate(
+            { id: debt.id, withTransactions: debt.paid > 0 },
+            { onSuccess: () => navigate('/hutang', { replace: true }) },
+          )
+        }
+        onClose={() => {
+          setDeleting(false)
+          removeDebt.reset()
+        }}
+      />
 
       <ConfirmSheet
         open={writingOff}
@@ -297,22 +372,23 @@ export function DebtDetailPage() {
       />
 
       <ConfirmSheet
-        open={removing !== null}
+        open={removingPayment !== null}
         title="Hapus pembayaran ini?"
         message={
-          removing
-            ? `Pembayaran ${formatRupiah(removing.amount)} pada ${formatDate(removing.date)} akan dihapus. Sisa dan saldo dompet dihitung ulang.`
+          removingPayment
+            ? `Pembayaran ${formatRupiah(removingPayment.amount)} pada ${formatDate(removingPayment.date)} (${payable ? 'dari' : 'masuk ke'} ${walletName(removingPayment.accountId)}) akan dihapus. Sisa ${payable ? 'hutang' : 'piutang'} dan saldo dompet dihitung ulang.`
             : ''
         }
         confirmLabel="Hapus"
-        pending={remove.isPending}
-        error={remove.error ? errorMessage(remove.error) : null}
+        pending={removePayment.isPending}
+        error={removePayment.error ? errorMessage(removePayment.error) : null}
         onConfirm={() =>
-          removing && remove.mutate(removing.id, { onSuccess: () => setRemoving(null) })
+          removingPayment &&
+          removePayment.mutate(removingPayment.id, { onSuccess: () => setRemovingPayment(null) })
         }
         onClose={() => {
-          setRemoving(null)
-          remove.reset()
+          setRemovingPayment(null)
+          removePayment.reset()
         }}
       />
     </>

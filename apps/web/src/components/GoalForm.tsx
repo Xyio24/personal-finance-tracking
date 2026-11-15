@@ -2,10 +2,9 @@ import type { CategoryColor, CategoryIcon, SavingsGoal } from '@finance/shared'
 import { Archive, ArchiveRestore, LoaderCircle, Trash2, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { errorMessage } from '../lib/errors'
-import { useCreateGoal, useDeleteGoal, useUpdateGoal } from '../lib/queries'
+import { useCreateGoal, useUpdateGoal } from '../lib/queries'
 import { AmountInput } from './AmountInput'
 import { CategoryBadge } from './Badges'
-import { ConfirmSheet } from './ConfirmSheet'
 import { ColorPicker, IconPicker } from './Pickers'
 import {
   dangerButtonClass,
@@ -18,13 +17,16 @@ import {
 const amountBox = 'rounded-xl border border-slate-200 px-4 dark:border-slate-700'
 const hintClass = 'mt-1.5 text-xs text-slate-500 dark:text-slate-400'
 
-/** Create or edit a savings goal. `onDone` receives the saved goal (or nothing after delete). */
+/** Create or edit a savings goal. `onDone` receives the saved goal. */
 export function GoalForm({
   goal,
   onDone,
+  onDelete,
 }: {
   goal: SavingsGoal | null
-  onDone: (saved?: SavingsGoal) => void
+  onDone: (saved: SavingsGoal) => void
+  /** Editing only: shows a delete button; the page asks for confirmation. */
+  onDelete?: () => void
 }) {
   const [name, setName] = useState(goal?.name ?? '')
   const [icon, setIcon] = useState<CategoryIcon>(goal?.icon ?? 'piggy-bank')
@@ -32,11 +34,9 @@ export function GoalForm({
   const [target, setTarget] = useState(goal?.targetAmount ?? 0)
   const [deadline, setDeadline] = useState(goal?.deadline ?? '')
   const [initial, setInitial] = useState(goal?.initialAmount ?? 0)
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const create = useCreateGoal()
   const update = useUpdateGoal()
-  const remove = useDeleteGoal()
   const saving = create.isPending || update.isPending
   const saveError = create.error ?? update.error
   const valid = name.trim().length > 0
@@ -52,8 +52,8 @@ export function GoalForm({
       deadline: deadline || null,
       initialAmount: initial,
     }
-    if (goal) update.mutate({ id: goal.id, ...fields }, { onSuccess: (saved) => onDone(saved) })
-    else create.mutate(fields, { onSuccess: (saved) => onDone(saved) })
+    if (goal) update.mutate({ id: goal.id, ...fields }, { onSuccess: onDone })
+    else create.mutate(fields, { onSuccess: onDone })
   }
 
   return (
@@ -123,7 +123,8 @@ export function GoalForm({
           <AmountInput id="goal-initial" size="md" value={initial} onChange={setInitial} />
         </div>
         <p className={hintClass}>
-          Tabungan yang sudah ada sebelum mulai mencatat. Isi dan culik berikutnya dicatat terpisah.
+          Tabungan yang sudah ada sebelum mulai mencatat. Isi dan culik berikutnya dicatat terpisah;
+          kalau salah ketik di salah satunya, ketuk catatannya di Riwayat.
         </p>
       </div>
 
@@ -148,10 +149,7 @@ export function GoalForm({
               type="button"
               disabled={saving}
               onClick={() =>
-                update.mutate(
-                  { id: goal.id, archived: !goal.archived },
-                  { onSuccess: (saved) => onDone(saved) },
-                )
+                update.mutate({ id: goal.id, archived: !goal.archived }, { onSuccess: onDone })
               }
               className={secondaryButtonClass}
             >
@@ -162,28 +160,13 @@ export function GoalForm({
               )}
               {goal.archived ? 'Aktifkan' : 'Arsipkan'}
             </button>
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              className={dangerButtonClass}
-            >
-              <Trash2 className="size-4" aria-hidden />
-              Hapus
-            </button>
+            {onDelete && (
+              <button type="button" onClick={onDelete} className={dangerButtonClass}>
+                <Trash2 className="size-4" aria-hidden />
+                Hapus
+              </button>
+            )}
           </div>
-          <ConfirmSheet
-            open={confirmDelete}
-            title="Hapus tabungan?"
-            message={`"${goal.name}" akan dihapus permanen. Tabungan yang sudah pernah diisi atau diculik tidak bisa dihapus, hanya diarsipkan.`}
-            confirmLabel="Hapus"
-            pending={remove.isPending}
-            error={remove.error ? errorMessage(remove.error) : null}
-            onConfirm={() => remove.mutate(goal.id, { onSuccess: () => onDone() })}
-            onClose={() => {
-              setConfirmDelete(false)
-              remove.reset()
-            }}
-          />
         </>
       )}
     </form>

@@ -2,11 +2,10 @@ import { type Account, type Debt, type DebtDirection, formatRupiah } from '@fina
 import { LoaderCircle, Trash2, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { errorMessage } from '../lib/errors'
-import { formatDate, todayKey } from '../lib/format'
+import { todayKey } from '../lib/format'
 import { readLastAccount } from '../lib/lastAccount'
-import { useCreateDebt, useDeleteDebt, useUpdateDebt } from '../lib/queries'
+import { useCreateDebt, useUpdateDebt } from '../lib/queries'
 import { AmountInput } from './AmountInput'
-import { ConfirmSheet } from './ConfirmSheet'
 import { AccountPicker, DateField } from './Pickers'
 import { SegmentedControl } from './SegmentedControl'
 import { dangerButtonClass, inputClass, labelClass, primaryButtonClass } from './ui'
@@ -19,82 +18,93 @@ const directionOptions = [
 const hintClass = 'mt-1.5 text-xs text-slate-500 dark:text-slate-400'
 
 /**
- * Create a hutang/piutang, or edit one. The direction, date and opening wallet are fixed once
- * created (they define how money moved); person, amount, due date and note stay editable.
+ * Create a hutang/piutang, or correct one. Everything stays editable; the money move it opened
+ * with follows the direction, amount, date and wallet. Only the direction is fixed once a
+ * payment exists, because payments are recorded as "bayar" or "terima" by direction.
  */
 export function DebtForm({
   debt,
   accounts,
   initialDirection = 'payable',
   onDone,
+  onDelete,
 }: {
   debt: Debt | null
   accounts: Account[]
   initialDirection?: DebtDirection
-  onDone: (saved?: Debt) => void
+  onDone: (saved: Debt) => void
+  /** Editing only: shows a delete button; the page asks for confirmation. */
+  onDelete?: () => void
 }) {
-  const choices = accounts.filter((a) => !a.archived)
+  // An archived wallet stays selectable for the debt that already uses it.
+  const choices = accounts.filter((a) => !a.archived || a.id === debt?.accountId)
   const last = readLastAccount()
   const [direction, setDirection] = useState<DebtDirection>(debt?.direction ?? initialDirection)
   const [person, setPerson] = useState(debt?.person ?? '')
   const [amount, setAmount] = useState(debt?.amount ?? 0)
   const [date, setDate] = useState(debt?.date ?? todayKey())
   const [accountId, setAccountId] = useState(
-    choices.find((a) => a.id === last)?.id ?? choices[0]?.id ?? '',
+    debt
+      ? (debt.accountId ?? '')
+      : (choices.find((a) => a.id === last)?.id ?? choices[0]?.id ?? ''),
   )
   const [dueDate, setDueDate] = useState(debt?.dueDate ?? '')
   const [note, setNote] = useState(debt?.note ?? '')
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const create = useCreateDebt()
   const update = useUpdateDebt()
-  const remove = useDeleteDebt()
   const saving = create.isPending || update.isPending
   const saveError = create.error ?? update.error
+  const hasPayments = debt !== null && debt.paid > 0
   const belowPaid = debt !== null && amount < debt.paid
   const valid = person.trim().length > 0 && amount > 0 && !belowPaid
 
   function submit(event: FormEvent) {
     event.preventDefault()
     if (!valid || saving) return
-    const shared = {
+    const fields = {
+      direction,
       person: person.trim(),
       amount,
+      date,
       dueDate: dueDate || null,
       note: note.trim() || null,
+      accountId: accountId || null,
     }
-    if (debt) {
-      update.mutate({ id: debt.id, ...shared }, { onSuccess: (saved) => onDone(saved) })
-    } else {
-      create.mutate(
-        { ...shared, direction, date, accountId: accountId || null },
-        { onSuccess: (saved) => onDone(saved) },
-      )
-    }
+    if (debt) update.mutate({ id: debt.id, ...fields }, { onSuccess: onDone })
+    else create.mutate(fields, { onSuccess: onDone })
   }
 
   const payable = direction === 'payable'
-  const openingWallet = debt?.accountId
-    ? (accounts.find((a) => a.id === debt.accountId)?.name ?? 'dompet terhapus')
-    : null
+  const moneyMoves =
+    debt !== null &&
+    (direction !== debt.direction ||
+      amount !== debt.amount ||
+      date !== debt.date ||
+      (accountId || null) !== debt.accountId)
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      {debt ? (
-        <p className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          {payable ? 'Dipinjam' : 'Dipinjamkan'} {formatDate(debt.date)}
-          {openingWallet
-            ? ` · uang ${payable ? 'masuk ke' : 'keluar dari'} ${openingWallet}`
-            : ' · tanpa dompet'}
-        </p>
-      ) : (
-        <SegmentedControl
-          label="Jenis"
-          value={direction}
-          options={directionOptions}
-          onChange={setDirection}
-        />
-      )}
+      <div>
+        {hasPayments ? (
+          <p className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            {payable ? 'Hutang (aku pinjam)' : 'Piutang (aku meminjamkan)'}
+          </p>
+        ) : (
+          <SegmentedControl
+            label="Jenis"
+            value={direction}
+            options={directionOptions}
+            onChange={setDirection}
+          />
+        )}
+        {hasPayments && (
+          <p className={hintClass}>
+            Sudah ada pembayaran, jadi jenisnya tidak bisa diganti. Kalau salah, hapus catatan ini
+            lalu catat ulang.
+          </p>
+        )}
+      </div>
 
       <div>
         <label htmlFor="debt-person" className={labelClass}>
@@ -123,25 +133,21 @@ export function DebtForm({
         )}
       </div>
 
-      {!debt && (
-        <>
-          <DateField value={date} onChange={setDate} />
-          <div>
-            <AccountPicker
-              label={payable ? 'Uang masuk ke' : 'Uang keluar dari'}
-              accounts={choices}
-              value={accountId}
-              onChange={setAccountId}
-              noneLabel="Tanpa dompet"
-            />
-            {!accountId && (
-              <p className={hintClass}>
-                Tidak ada uang yang berpindah, mis. beli barang dengan paylater.
-              </p>
-            )}
-          </div>
-        </>
-      )}
+      <DateField value={date} onChange={setDate} />
+      <div>
+        <AccountPicker
+          label={payable ? 'Uang masuk ke' : 'Uang keluar dari'}
+          accounts={choices}
+          value={accountId}
+          onChange={setAccountId}
+          noneLabel="Tanpa dompet"
+        />
+        {!accountId && (
+          <p className={hintClass}>
+            Tidak ada uang yang berpindah, mis. beli barang dengan paylater.
+          </p>
+        )}
+      </div>
 
       <div>
         <label htmlFor="debt-due" className={labelClass}>
@@ -183,6 +189,13 @@ export function DebtForm({
         />
       </div>
 
+      {moneyMoves && (
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+          Uang yang tercatat {payable ? 'masuk' : 'keluar'} saat itu ikut diperbaiki, dan saldo
+          dompet dihitung ulang.
+        </p>
+      )}
+
       {saveError && (
         <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
           {errorMessage(saveError)}
@@ -194,30 +207,11 @@ export function DebtForm({
         Simpan
       </button>
 
-      {debt && (
-        <>
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className={dangerButtonClass}
-          >
-            <Trash2 className="size-4" aria-hidden />
-            Hapus
-          </button>
-          <ConfirmSheet
-            open={confirmDelete}
-            title="Hapus catatan ini?"
-            message={`${payable ? 'Hutang ke' : 'Piutang dari'} ${debt.person} akan dihapus permanen, termasuk uang yang tercatat ${payable ? 'masuk' : 'keluar'} saat itu. Yang sudah punya pembayaran tidak bisa dihapus.`}
-            confirmLabel="Hapus"
-            pending={remove.isPending}
-            error={remove.error ? errorMessage(remove.error) : null}
-            onConfirm={() => remove.mutate(debt.id, { onSuccess: () => onDone() })}
-            onClose={() => {
-              setConfirmDelete(false)
-              remove.reset()
-            }}
-          />
-        </>
+      {debt && onDelete && (
+        <button type="button" onClick={onDelete} className={dangerButtonClass}>
+          <Trash2 className="size-4" aria-hidden />
+          Hapus {debt.direction === 'payable' ? 'hutang' : 'piutang'} ini
+        </button>
       )}
     </form>
   )

@@ -5,7 +5,7 @@ import {
   type SavingsType,
   type Transaction,
 } from '@finance/shared'
-import { ArchiveRestore, Pencil, Plus } from 'lucide-react'
+import { ArchiveRestore, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { CategoryBadge } from '../components/Badges'
@@ -27,6 +27,7 @@ import {
 } from '../lib/format'
 import {
   useAccounts,
+  useDeleteGoal,
   useDeleteTransaction,
   useGoalHistory,
   useSavingsGoals,
@@ -41,9 +42,12 @@ export function GoalDetailPage() {
   const history = useGoalHistory(id)
   const update = useUpdateGoal()
   const remove = useDeleteTransaction()
+  const removeGoal = useDeleteGoal()
 
   const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [moving, setMoving] = useState<SavingsType | null>(null)
+  const [editingMove, setEditingMove] = useState<Transaction | null>(null)
   const [removing, setRemoving] = useState<Transaction | null>(null)
 
   const goal = goals.data?.find((g) => g.id === id)
@@ -75,6 +79,21 @@ export function GoalDetailPage() {
     accounts.data.find((a) => a.id === accountId)?.name ?? 'Dompet terhapus'
   const kidnaps = history.data?.filter((t) => t.type === 'saving_withdrawal') ?? []
   const daysLeft = goal.deadline ? daysBetween(today, goal.deadline) : null
+  const moveCount = history.data?.length
+  // Until the history has loaded, assume there are entries (and say so) rather than guess.
+  const hasMoves = moveCount === undefined || moveCount > 0
+
+  // Spell out what a delete does to wallets and net worth, so nothing changes by surprise.
+  const deleteMessage = [
+    `"${goal.name}" akan dihapus permanen.`,
+    hasMoves &&
+      `${moveCount ? `${moveCount} catatan isi/culik` : 'Semua catatan isi/culik'} ikut terhapus: uang yang diisi kembali ke dompet asalnya, dan yang diculik ditarik lagi dari dompetnya.`,
+    goal.initialAmount > 0 &&
+      `Saldo awal ${formatRupiah(goal.initialAmount)} ikut hilang dari kekayaan bersih.`,
+    hasMoves && 'Kalau tabungan ini sudah selesai, arsipkan saja supaya riwayatnya tetap ada.',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <>
@@ -82,9 +101,14 @@ export function GoalDetailPage() {
         title={goal.name}
         backTo="/tabungan"
         action={
-          <HeaderIconButton label="Ubah tabungan" onClick={() => setEditing(true)}>
-            <Pencil className="size-5" aria-hidden />
-          </HeaderIconButton>
+          <>
+            <HeaderIconButton label="Hapus tabungan" onClick={() => setDeleting(true)}>
+              <Trash2 className="size-5" aria-hidden />
+            </HeaderIconButton>
+            <HeaderIconButton label="Ubah tabungan" onClick={() => setEditing(true)}>
+              <Pencil className="size-5" aria-hidden />
+            </HeaderIconButton>
+          </>
         }
       />
 
@@ -141,6 +165,11 @@ export function GoalDetailPage() {
           <p className="text-slate-600 dark:text-slate-300">
             Tabungan ini diarsipkan. Aktifkan lagi untuk mengisi atau menculiknya.
           </p>
+          {update.error && (
+            <p role="alert" className="mt-2 text-rose-600 dark:text-rose-400">
+              {errorMessage(update.error)}
+            </p>
+          )}
           <button
             type="button"
             disabled={update.isPending}
@@ -181,9 +210,12 @@ export function GoalDetailPage() {
       )}
 
       <section className="mt-6" aria-labelledby="goal-history">
-        <h2 id="goal-history" className="mx-4 mb-2 font-semibold">
+        <h2 id="goal-history" className="mx-4 font-semibold">
           Riwayat
         </h2>
+        <p className="mx-4 mb-2 text-xs text-slate-500 dark:text-slate-400">
+          Ketuk catatan untuk mengubah atau menghapusnya.
+        </p>
         {history.isError ? (
           <LoadError error={history.error} onRetry={() => history.refetch()} />
         ) : !history.data ? (
@@ -208,7 +240,8 @@ export function GoalDetailPage() {
                 <li key={t.id}>
                   <button
                     type="button"
-                    onClick={() => setRemoving(t)}
+                    onClick={() => setEditingMove(t)}
+                    aria-label={`Ubah ${isDeposit ? 'isi' : 'culik'} ${formatRupiah(t.amount)}, ${formatDate(t.date)}`}
                     className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-slate-800"
                   >
                     <span
@@ -237,6 +270,7 @@ export function GoalDetailPage() {
                       {isDeposit ? '+' : '−'}
                       {formatRupiah(t.amount)}
                     </span>
+                    <ChevronRight className="size-4 shrink-0 text-slate-400" aria-hidden />
                   </button>
                 </li>
               )
@@ -260,24 +294,64 @@ export function GoalDetailPage() {
         )}
       </Sheet>
 
+      <Sheet
+        open={editingMove !== null}
+        onClose={() => setEditingMove(null)}
+        title={editingMove?.type === 'saving_withdrawal' ? 'Ubah culik 🥷' : 'Ubah isi tabungan'}
+      >
+        {editingMove && (
+          <GoalMoveForm
+            goal={goal}
+            type={editingMove.type === 'saving_withdrawal' ? 'saving_withdrawal' : 'saving_deposit'}
+            accounts={accounts.data}
+            move={editingMove}
+            onDone={() => setEditingMove(null)}
+            onDelete={() => {
+              setRemoving(editingMove)
+              setEditingMove(null)
+            }}
+          />
+        )}
+      </Sheet>
+
       <Sheet open={editing} onClose={() => setEditing(false)} title="Ubah tabungan">
         {editing && (
           <GoalForm
             goal={goal}
-            onDone={(saved) => {
+            onDone={() => setEditing(false)}
+            onDelete={() => {
               setEditing(false)
-              if (!saved) navigate('/tabungan', { replace: true })
+              setDeleting(true)
             }}
           />
         )}
       </Sheet>
 
       <ConfirmSheet
+        open={deleting}
+        title="Hapus tabungan ini?"
+        message={deleteMessage}
+        confirmLabel="Hapus"
+        pending={removeGoal.isPending}
+        error={removeGoal.error ? errorMessage(removeGoal.error) : null}
+        onConfirm={() =>
+          removeGoal.mutate(
+            { id: goal.id, withTransactions: hasMoves },
+            { onSuccess: () => navigate('/tabungan', { replace: true }) },
+          )
+        }
+        onClose={() => {
+          setDeleting(false)
+          removeGoal.reset()
+        }}
+      />
+
+      <ConfirmSheet
         open={removing !== null}
         title="Hapus catatan ini?"
         message={
           removing
-            ? `${removing.type === 'saving_deposit' ? 'Isi' : 'Culik'} ${formatRupiah(removing.amount)} pada ${formatDate(removing.date)} akan dihapus. Saldo dompet dan tabungan dihitung ulang.`
+            ? `${removing.type === 'saving_deposit' ? 'Isi' : 'Culik'} ${formatRupiah(removing.amount)} pada ${formatDate(removing.date)} (${removing.type === 'saving_deposit' ? 'dari' : 'ke'} ${accountName(removing.accountId)}) akan dihapus. Saldo dompet dan tabungan dihitung ulang.`
             : ''
         }
         confirmLabel="Hapus"
