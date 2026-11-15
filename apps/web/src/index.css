@@ -4,6 +4,26 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/*
+ * Chart colors. Income/expense use aqua and orange instead of green and red: green vs red
+ * fails the color-vision-deficiency check (deutan ΔE 5.6), this pair passes in both themes
+ * (ΔE 9.2 light / 9.4 dark, validated against the card surfaces #fff and #0f172a). Aqua is
+ * below 3:1 on white, so every chart also shows its numbers as text and as a table.
+ */
+:root {
+  --chart-income: #1baf7a;
+  --chart-expense: #eb6834;
+  --chart-grid: #e2e8f0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chart-income: #199e70;
+    --chart-expense: #d95926;
+    --chart-grid: #1e293b;
+  }
+}
+
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;

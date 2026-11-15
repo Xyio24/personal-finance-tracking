@@ -6,6 +6,7 @@ import { CategoriesPage } from './pages/CategoriesPage'
 import { DebtsPage } from './pages/DebtsPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
+import { ReportPage } from './pages/ReportPage'
 import { SavingsPage } from './pages/SavingsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TransactionFormPage } from './pages/TransactionFormPage'
@@ -19,6 +20,7 @@ export function App() {
         <Route element={<AppShell />}>
           <Route index element={<HomePage />} />
           <Route path="transaksi" element={<TransactionsPage />} />
+          <Route path="laporan" element={<ReportPage />} />
           <Route path="tabungan" element={<SavingsPage />} />
           <Route path="hutang" element={<DebtsPage />} />
           <Route path="pengaturan" element={<SettingsPage />} />
