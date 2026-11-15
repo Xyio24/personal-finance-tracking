@@ -10,6 +10,15 @@ async function scrollTo(page: Page, y: number) {
   await expect.poll(() => scrollY(page)).toBe(y)
 }
 
+/** Opens the Transaksi tab and waits until its list (not Home's) is on screen. */
+async function openTransactions(page: Page) {
+  await goTo(page, 'Transaksi')
+  await expect(page.getByRole('heading', { name: 'Transaksi', level: 1 })).toBeVisible()
+  const rows = page.locator('[data-page-frame] li a[href]')
+  await expect(rows.first()).toBeVisible()
+  return rows
+}
+
 /** First keyframe of the page frame's running entrance (slowed down so it can be read). */
 async function entrance(page: Page) {
   return page.evaluate(() => {
@@ -24,25 +33,26 @@ test('going back returns to the same spot in the list; a new page starts at the 
   page,
 }) => {
   await openApp(page)
-  await goTo(page, 'Transaksi')
-  const rows = page.locator('[data-page-frame] li a[href]')
-  await expect(rows.first()).toBeVisible()
+  const rows = await openTransactions(page)
   await scrollTo(page, 400)
 
+  // A tap first scrolls the row into view if needed: measure where the user really is.
   const row = rows.filter({ hasText: /Rp/ }).nth(6)
+  await row.scrollIntoViewIfNeeded()
+  const before = await scrollY(page)
+  expect(before).toBeGreaterThan(0)
   await row.click()
   await expect(page.getByRole('heading', { name: 'Ubah transaksi' })).toBeVisible()
   await expect.poll(() => scrollY(page)).toBe(0)
 
   await page.getByRole('button', { name: 'Kembali' }).click()
   await expect(page.getByRole('heading', { name: 'Transaksi', level: 1 })).toBeVisible()
-  await expect.poll(() => scrollY(page)).toBe(400)
+  await expect.poll(() => scrollY(page)).toBe(before)
 })
 
 test('switching the month keeps the place; switching tabs starts at the top', async ({ page }) => {
   await openApp(page)
-  await goTo(page, 'Transaksi')
-  await expect(page.locator('[data-page-frame] li a[href]').first()).toBeVisible()
+  await openTransactions(page)
   await scrollTo(page, 60)
   await page.getByRole('button', { name: 'Bulan sebelumnya' }).click()
   await expect(page.getByText(/Oktober 2026/).first()).toBeVisible()
@@ -55,8 +65,7 @@ test('switching the month keeps the place; switching tabs starts at the top', as
 
 test('tapping the tab you are on scrolls back to the top', async ({ page }) => {
   await openApp(page)
-  await goTo(page, 'Transaksi')
-  await expect(page.locator('[data-page-frame] li a[href]').first()).toBeVisible()
+  await openTransactions(page)
   await scrollTo(page, 200)
   await goTo(page, 'Transaksi')
   await expect.poll(() => scrollY(page)).toBe(0)
@@ -71,10 +80,11 @@ test('pages slide in from the right going deeper and from the left going back', 
   await cdp.send('Animation.setPlaybackRate', { playbackRate: 0.05 })
 
   await goTo(page, 'Hutang')
-  expect(await entrance(page)).toMatchObject({ transform: null }) // tabs only fade
+  await expect.poll(() => entrance(page)).toMatchObject({ transform: null }) // tabs only fade
+  await expect(page.getByRole('heading', { name: 'Hutang & Piutang' })).toBeVisible()
 
   await page.getByRole('link', { name: /Kakak/ }).click()
-  expect(await entrance(page)).toMatchObject({ transform: 'translateX(32px)' })
+  await expect.poll(() => entrance(page)).toMatchObject({ transform: 'translateX(32px)' })
   // The slide never makes the page scroll sideways.
   expect(
     await page.evaluate(
@@ -83,7 +93,7 @@ test('pages slide in from the right going deeper and from the left going back', 
   ).toBe(true)
 
   await page.getByRole('button', { name: 'Kembali' }).click()
-  expect(await entrance(page)).toMatchObject({ transform: 'translateX(-32px)' })
+  await expect.poll(() => entrance(page)).toMatchObject({ transform: 'translateX(-32px)' })
   await cdp.send('Animation.setPlaybackRate', { playbackRate: 1 })
 })
 
@@ -110,8 +120,9 @@ test.describe('with reduced motion', () => {
     await cdp.send('Animation.enable')
     await cdp.send('Animation.setPlaybackRate', { playbackRate: 0.05 })
     await goTo(page, 'Hutang')
+    await expect(page.getByRole('heading', { name: 'Hutang & Piutang' })).toBeVisible()
     await page.getByRole('link', { name: /Kakak/ }).click()
-    expect(await entrance(page)).toMatchObject({ transform: null, opacity: "0" })
+    await expect.poll(() => entrance(page)).toMatchObject({ transform: null, opacity: '0' })
     await cdp.send('Animation.setPlaybackRate', { playbackRate: 1 })
   })
 })
