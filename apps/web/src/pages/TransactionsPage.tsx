@@ -119,7 +119,10 @@ export function TransactionsPage() {
                 <section key={group.date}>
                   <div className="mx-4 mb-1.5 flex items-baseline justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
                     <h3>{formatDayHeading(group.date)}</h3>
-                    <span className="tabular-nums">{signed(day.net)}</span>
+                    {/* Transfers only move money between wallets: no day total for those. */}
+                    {(day.income > 0 || day.expense > 0) && (
+                      <span className="tabular-nums">{signed(day.net)}</span>
+                    )}
                   </div>
                   <ul
                     className={`mx-4 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800 ${cardClass}`}

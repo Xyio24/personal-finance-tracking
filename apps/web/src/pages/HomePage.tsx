@@ -8,7 +8,6 @@ import { ListSkeleton, LoadError } from '../components/QueryState'
 import { TransactionRow, useLookups } from '../components/TransactionRow'
 import { cardClass } from '../components/ui'
 import { useCurrentUser } from '../lib/auth'
-import { formatMonth } from '../lib/format'
 import { useAccounts, useCategories, useMonthTransactions } from '../lib/queries'
 
 function greeting(date = new Date()) {
@@ -52,11 +51,11 @@ export function HomePage() {
         </p>
         <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-white/15 pt-3">
           <div className="min-w-0">
-            <dt className="text-xs text-emerald-100/80">Pemasukan {formatMonth(month)}</dt>
+            <dt className="text-xs text-emerald-100/80">Pemasukan bulan ini</dt>
             <dd className="truncate font-semibold tabular-nums">+{formatRupiah(totals.income)}</dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-xs text-emerald-100/80">Pengeluaran</dt>
+            <dt className="text-xs text-emerald-100/80">Pengeluaran bulan ini</dt>
             <dd className="truncate font-semibold tabular-nums">−{formatRupiah(totals.expense)}</dd>
           </div>
         </dl>

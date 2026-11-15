@@ -137,7 +137,11 @@ function initialDraft(
   }
 }
 
-const typeOptions = TRANSACTION_TYPES.map((t) => ({ value: t, label: transactionTypes[t].label }))
+// Expense first: it is what gets recorded most, and matches the quick-add sheet.
+const typeOptions = (['expense', 'income', 'transfer'] as const).map((t) => ({
+  value: t,
+  label: transactionTypes[t].label,
+}))
 
 function TransactionForm({
   existing,
