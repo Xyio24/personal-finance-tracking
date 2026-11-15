@@ -90,6 +90,11 @@ sekali.
   terbuka saat offline (data dimuat lagi begitu tersambung). Data keuangan tidak pernah disimpan
   di cache browser.
 - **Ekspor CSV** semua transaksi dari Pengaturan, siap dibuka di Excel atau Google Sheets
+- **Terasa seperti aplikasi HP**: popup meluncur dari bawah dengan latar blur dan bisa ditutup
+  dengan digeser ke bawah, halaman bergeser masuk (dari kanan saat masuk lebih dalam, dari kiri saat
+  kembali), posisi scroll daftar diingat saat kembali, toast konfirmasi dengan **Urungkan**, dan
+  isian yang tidak sengaja tertutup bisa dipulihkan. Semua animasi mengikuti setelan "kurangi
+  gerakan" di HP.
 - **Salah input bisa diperbaiki**: setiap transaksi, isi/culik, pembayaran hutang, dan hutang/
   piutang itu sendiri (termasuk tanggal, dompet, dan jenisnya) bisa diubah atau dihapus.
   Hutang/piutang dan tabungan bisa dihapus beserta seluruh riwayatnya; konfirmasinya menyebut apa
