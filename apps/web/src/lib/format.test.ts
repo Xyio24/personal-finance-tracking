@@ -18,6 +18,7 @@ describe('date labels', () => {
 
   it('spells out older days in Indonesian', () => {
     expect(formatDayHeading('2026-11-12', today)).toBe('Kamis, 12 November')
+    expect(formatDayHeading('2025-12-24', today)).toBe('Rabu, 24 Desember 2025')
   })
 
   it('formats dates and months', () => {

@@ -33,11 +33,15 @@ export function formatShare(ratio: number): string {
 
 export const todayKey = () => toDateKey(new Date())
 
-/** Heading for a day in a list: "Hari ini", "Kemarin", or "Sabtu, 14 November". */
+/**
+ * Heading for a day in a list: "Hari ini", "Kemarin", "Sabtu, 14 November", and with the year
+ * for other years ("Rabu, 24 Desember 2025"), since search results can span years.
+ */
 export function formatDayHeading(dateKey: string, today = todayKey()): string {
   if (dateKey === today) return 'Hari ini'
   if (dateKey === shiftDate(today, -1)) return 'Kemarin'
-  return dayFormat.format(fromDateKey(dateKey))
+  const label = dayFormat.format(fromDateKey(dateKey))
+  return dateKey.slice(0, 4) === today.slice(0, 4) ? label : `${label} ${dateKey.slice(0, 4)}`
 }
 
 /** "15 Nov 2026" */
