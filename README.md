@@ -90,11 +90,16 @@ sekali.
   terbuka saat offline (data dimuat lagi begitu tersambung). Data keuangan tidak pernah disimpan
   di cache browser.
 - **Ekspor CSV** semua transaksi dari Pengaturan, siap dibuka di Excel atau Google Sheets
+- **Salah input bisa diperbaiki**: setiap transaksi, isi/culik, pembayaran hutang, dan hutang/
+  piutang itu sendiri (termasuk tanggal, dompet, dan jenisnya) bisa diubah atau dihapus.
+  Hutang/piutang dan tabungan bisa dihapus beserta seluruh riwayatnya; konfirmasinya menyebut apa
+  saja yang ikut terhapus dan dompet mana yang berubah.
 
 Uang disimpan sebagai rupiah bulat (`bigint`), jadi semua penjumlahan eksak. Isi dan culik
 tabungan, juga pinjam dan bayar hutang, hanya memindahkan uang, jadi tidak dihitung sebagai
-pemasukan atau pengeluaran. Dompet atau
-kategori yang sudah dipakai tidak bisa dihapus, hanya diarsipkan, supaya riwayat tetap utuh.
+pemasukan atau pengeluaran. Saldo tidak pernah disimpan, selalu dihitung dari transaksi, jadi
+menghapus atau mengubah catatan otomatis memperbaiki saldo dompet. Dompet atau kategori yang sudah
+dipakai tidak bisa dihapus, hanya diarsipkan, supaya riwayat tetap utuh.
 
 | Perintah                    | Fungsi                                                              |
 | --------------------------- | ------------------------------------------------------------------- |
