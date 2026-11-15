@@ -1,14 +1,23 @@
-import { formatRupiah, summarize, toMonthKey } from '@finance/shared'
+import { debtStatus, debtTotals, formatRupiah, summarize, toMonthKey } from '@finance/shared'
 import { PiggyBank } from 'lucide-react'
+import { Fragment } from 'react'
 import { Link } from 'react-router'
 import { AccountBadge } from '../components/Badges'
 import { CategoryBreakdown } from '../components/CategoryBreakdown'
+import { DebtStatusPill, debtTitle, PersonAvatar } from '../components/DebtVisuals'
 import { PageHeader } from '../components/PageHeader'
 import { ListSkeleton, LoadError } from '../components/QueryState'
 import { TransactionRow, useLookups } from '../components/TransactionRow'
 import { cardClass } from '../components/ui'
 import { useCurrentUser } from '../lib/auth'
-import { useAccounts, useCategories, useMonthTransactions, useSavingsGoals } from '../lib/queries'
+import { todayKey } from '../lib/format'
+import {
+  useAccounts,
+  useCategories,
+  useDebts,
+  useMonthTransactions,
+  useSavingsGoals,
+} from '../lib/queries'
 
 function greeting(date = new Date()) {
   const hour = date.getHours()
@@ -28,14 +37,31 @@ export function HomePage() {
   const accounts = useAccounts()
   const categories = useCategories()
   const goals = useSavingsGoals()
+  const debts = useDebts()
   const transactions = useMonthTransactions(month)
-  const lookups = useLookups(accounts.data, categories.data, goals.data)
+  const lookups = useLookups(accounts.data, categories.data, goals.data, debts.data)
 
   const walletTotal = accounts.data?.reduce((sum, a) => sum + a.balance, 0)
   const savingsTotal = goals.data?.reduce((sum, g) => sum + g.balance, 0)
-  // Money put into savings left the wallets but is still yours: count both.
+  const owed = debts.data && debtTotals(debts.data)
+  // Money in savings left the wallets but is still yours; piutang is yours to collect and
+  // hutang is not yours to keep. Borrowing into a wallet therefore leaves this unchanged.
   const netWorth =
-    walletTotal === undefined || savingsTotal === undefined ? undefined : walletTotal + savingsTotal
+    walletTotal === undefined || savingsTotal === undefined || !owed
+      ? undefined
+      : walletTotal + savingsTotal + owed.net
+  const worthParts = [
+    `Dompet ${formatRupiah(walletTotal ?? 0)}`,
+    `Tabungan ${formatRupiah(savingsTotal ?? 0)}`,
+    owed && owed.receivable > 0 && `Piutang ${formatRupiah(owed.receivable)}`,
+    owed && owed.payable > 0 && `Hutang −${formatRupiah(owed.payable)}`,
+  ].filter((part): part is string => Boolean(part))
+
+  const today = todayKey()
+  const dueDebts = (debts.data ?? [])
+    .map((debt) => ({ debt, status: debtStatus(debt, today) }))
+    .filter(({ status }) => status === 'overdue' || status === 'due_soon')
+    .sort((a, b) => (a.debt.dueDate ?? '').localeCompare(b.debt.dueDate ?? ''))
   const activeAccounts = accounts.data?.filter((a) => !a.archived) ?? []
   const totals = summarize(transactions.data ?? [])
   const recent = transactions.data?.slice(0, 5) ?? []
@@ -55,8 +81,14 @@ export function HomePage() {
           )}
         </p>
         {netWorth !== undefined && (
-          <p className="mt-1 truncate text-xs text-emerald-100/80">
-            Dompet {formatRupiah(walletTotal ?? 0)} · Tabungan {formatRupiah(savingsTotal ?? 0)}
+          <p className="mt-1 text-xs leading-relaxed text-emerald-100/80">
+            {/* Breaks only between parts, so an amount never splits across lines. */}
+            {worthParts.map((part, i) => (
+              <Fragment key={part}>
+                {i > 0 && ' · '}
+                <span className="whitespace-nowrap">{part}</span>
+              </Fragment>
+            ))}
           </p>
         )}
         <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-white/15 pt-3">
@@ -70,6 +102,42 @@ export function HomePage() {
           </div>
         </dl>
       </section>
+
+      {dueDebts.length > 0 && (
+        <section className="mt-6" aria-labelledby="home-due">
+          <div className="mx-4 mb-2 flex items-center justify-between">
+            <h2 id="home-due" className="font-semibold">
+              Jatuh tempo
+            </h2>
+            <Link to="/hutang" className={linkClass}>
+              Hutang & piutang
+            </Link>
+          </div>
+          <ul
+            className={`mx-4 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800 ${cardClass}`}
+          >
+            {dueDebts.slice(0, 3).map(({ debt, status }) => (
+              <li key={debt.id}>
+                <Link
+                  to={`/hutang/${debt.id}`}
+                  className="flex items-center gap-3 px-4 py-3 active:bg-slate-50 dark:active:bg-slate-800"
+                >
+                  <PersonAvatar debt={debt} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{debtTitle(debt)}</span>
+                    <span className="mt-1 flex">
+                      <DebtStatusPill debt={debt} status={status} today={today} />
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">
+                    {formatRupiah(debt.remaining)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="mt-6" aria-labelledby="home-accounts">
         <div className="mx-4 mb-2 flex items-center justify-between">
