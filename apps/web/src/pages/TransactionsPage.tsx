@@ -22,6 +22,7 @@ import { useMonthParam } from '../lib/navigation'
 import {
   useAccounts,
   useCategories,
+  useDebts,
   useMonthTransactions,
   useSavingsGoals,
   useTransactionSearch,
@@ -89,7 +90,8 @@ export function TransactionsPage() {
   const accounts = useAccounts()
   const categories = useCategories()
   const goals = useSavingsGoals()
-  const lookups = useLookups(accounts.data, categories.data, goals.data)
+  const debts = useDebts()
+  const lookups = useLookups(accounts.data, categories.data, goals.data, debts.data)
 
   const source = searching ? search : monthList
   const list = searching ? search.data : monthList.data?.filter((t) => matchesFilters(t, filters))

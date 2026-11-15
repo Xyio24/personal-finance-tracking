@@ -1,7 +1,9 @@
 import {
   type Account,
   type Category,
+  type Debt,
   formatRupiah,
+  isDebtType,
   type SavingsGoal,
   type Transaction,
 } from '@finance/shared'
@@ -9,11 +11,13 @@ import { useMemo } from 'react'
 import { Link } from 'react-router'
 import { transactionTypes } from '../lib/visuals'
 import { CategoryBadge, TransferBadge } from './Badges'
+import { PersonAvatar } from './DebtVisuals'
 
 export type Lookups = {
   accounts: Map<string, Account>
   categories: Map<string, Category>
   goals: Map<string, SavingsGoal>
+  debts: Map<string, Debt>
 }
 
 /** Id -> item maps so rows can show names without extra requests. */
@@ -21,14 +25,16 @@ export function useLookups(
   accounts: Account[] | undefined,
   categories: Category[] | undefined,
   goals?: SavingsGoal[] | undefined,
+  debts?: Debt[] | undefined,
 ) {
   return useMemo<Lookups>(
     () => ({
       accounts: new Map((accounts ?? []).map((a) => [a.id, a])),
       categories: new Map((categories ?? []).map((c) => [c.id, c])),
       goals: new Map((goals ?? []).map((g) => [g.id, g])),
+      debts: new Map((debts ?? []).map((d) => [d.id, d])),
     }),
-    [accounts, categories, goals],
+    [accounts, categories, goals, debts],
   )
 }
 
@@ -50,7 +56,7 @@ export function TransactionRow({
   let badge: React.ReactNode
   let title: string
   let detail: string
-  // Savings moves are managed on their goal's page; everything else opens the edit form.
+  // Savings and debt moves are managed on their own pages; everything else opens the edit form.
   let href = `/transaksi/${t.id}`
 
   if (t.type === 'transfer') {
@@ -65,6 +71,19 @@ export function TransactionRow({
     title = t.type === 'saving_deposit' ? `Isi ${name}` : `Culik ${name} 🥷`
     detail = withNote(t.type === 'saving_deposit' ? `dari ${account}` : `ke ${account}`)
     href = `/tabungan/${t.goalId}`
+  } else if (isDebtType(t.type)) {
+    const person = lookups.debts.get(t.debtId ?? '')?.person
+    const payable = t.type === 'debt_borrow' || t.type === 'debt_repay'
+    const into = t.type === 'debt_borrow' || t.type === 'debt_collect'
+    const label = transactionTypes[t.type].label
+    badge = (
+      <PersonAvatar
+        debt={{ direction: payable ? 'payable' : 'receivable', person: person ?? '?' }}
+      />
+    )
+    title = person ? `${label} ${into ? 'dari' : 'ke'} ${person}` : label
+    detail = withNote(into ? `ke ${account}` : `dari ${account}`)
+    href = `/hutang/${t.debtId}`
   } else {
     const category = lookups.categories.get(t.categoryId ?? '')
     badge = (
