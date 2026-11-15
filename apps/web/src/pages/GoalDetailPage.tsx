@@ -18,7 +18,13 @@ import { Sheet } from '../components/Sheet'
 import { HeaderIconButton, SubPageHeader } from '../components/SubPageHeader'
 import { cardClass, primaryButtonClass, secondaryButtonClass } from '../components/ui'
 import { errorMessage } from '../lib/errors'
-import { formatDate, formatDayHeading, formatShare, todayKey } from '../lib/format'
+import {
+  formatDate,
+  formatDayHeading,
+  formatShare,
+  formatSignedRupiah,
+  todayKey,
+} from '../lib/format'
 import {
   useAccounts,
   useDeleteTransaction,
@@ -124,7 +130,7 @@ export function GoalDetailPage() {
             )}
           <Stat
             label="Laju 3 bulan terakhir"
-            value={`${formatRupiah(progress.pace)}/bln`}
+            value={`${progress.pace < 0 ? formatSignedRupiah(progress.pace) : formatRupiah(progress.pace)}/bln`}
             hint="Isi dikurangi culik"
           />
         </dl>
