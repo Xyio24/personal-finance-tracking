@@ -24,9 +24,46 @@ export const transactionInputSchema = z.discriminatedUnion('type', [
 ])
 export type TransactionInput = z.infer<typeof transactionInputSchema>
 
-export const transactionListQuerySchema = z.object({
-  month: z.string().regex(monthKeyPattern),
-})
+/** Most results a search across all months returns (newest first). */
+export const SEARCH_LIMIT = 100
+
+/**
+ * GET /api/transactions: either one month (`month`), or a search across all months (`q`,
+ * at most SEARCH_LIMIT results). The filters narrow either one.
+ */
+export const transactionListQuerySchema = z
+  .object({
+    month: z.string().regex(monthKeyPattern).optional(),
+    /** Matches the note or the category name, case-insensitive. */
+    q: z.string().trim().min(1).max(100).optional(),
+    type: z.enum(TRANSACTION_TYPES).optional(),
+    categoryId: z.uuid().optional(),
+    /** Matches either side of a transfer. */
+    accountId: z.uuid().optional(),
+  })
+  .refine((query) => query.month !== undefined || query.q !== undefined, {
+    message: 'month or q is required',
+  })
+export type TransactionListQuery = z.infer<typeof transactionListQuerySchema>
+
+export type TransactionFilters = Pick<TransactionListQuery, 'type' | 'categoryId' | 'accountId'>
+
+/** The same filter rules the API applies, for filtering an already loaded month. */
+export function matchesFilters(
+  t: Pick<Transaction, 'type' | 'categoryId' | 'accountId' | 'toAccountId'>,
+  filters: TransactionFilters,
+): boolean {
+  if (filters.type && t.type !== filters.type) return false
+  if (filters.categoryId && t.categoryId !== filters.categoryId) return false
+  if (
+    filters.accountId &&
+    t.accountId !== filters.accountId &&
+    t.toAccountId !== filters.accountId
+  ) {
+    return false
+  }
+  return true
+}
 
 export type Transaction = {
   id: string

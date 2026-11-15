@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { transactionInputSchema } from './transactions'
+import { matchesFilters, transactionInputSchema, transactionListQuerySchema } from './transactions'
 
 const a = '0b6c5e4e-1c1a-4d4f-9a55-3f0e2d1b7a10'
 const b = '7f1e2a3b-4c5d-4e6f-8a9b-0c1d2e3f4a5b'
@@ -51,5 +51,35 @@ describe('transactionInputSchema', () => {
       })
       expect(result.success).toBe(false)
     }
+  })
+})
+
+describe('query schemas', () => {
+  it('needs a month or a search term', () => {
+    expect(transactionListQuerySchema.safeParse({}).success).toBe(false)
+    expect(transactionListQuerySchema.safeParse({ month: '2026-11' }).success).toBe(true)
+    expect(transactionListQuerySchema.safeParse({ q: 'listrik' }).success).toBe(true)
+    expect(transactionListQuerySchema.safeParse({ q: '   ' }).success).toBe(false)
+  })
+})
+
+describe('matchesFilters', () => {
+  const transfer = {
+    type: 'transfer',
+    categoryId: null,
+    accountId: 'bank',
+    toAccountId: 'cash',
+  } as const
+  it('matches a wallet on either side of a transfer', () => {
+    expect(matchesFilters(transfer, { accountId: 'cash' })).toBe(true)
+    expect(matchesFilters(transfer, { accountId: 'bank' })).toBe(true)
+    expect(matchesFilters(transfer, { accountId: 'other' })).toBe(false)
+  })
+
+  it('combines filters', () => {
+    expect(matchesFilters(transfer, { type: 'transfer', accountId: 'cash' })).toBe(true)
+    expect(matchesFilters(transfer, { type: 'expense' })).toBe(false)
+    expect(matchesFilters(transfer, { categoryId: 'food' })).toBe(false)
+    expect(matchesFilters(transfer, {})).toBe(true)
   })
 })
