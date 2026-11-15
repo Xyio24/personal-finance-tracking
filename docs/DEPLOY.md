@@ -37,8 +37,11 @@ aplikasi hidup lagi sendiri setelah server restart atau mati listrik.
    (Nama menu bisa sedikit berbeda karena Cloudflare kadang mengubah dashboard.)
 3. Di langkah _install connector_, salin **token**-nya (string panjang setelah `--token`).
    Jangan jalankan perintah install-nya — cloudflared sudah ada di `docker-compose.yml`.
-4. **Public hostname**: subdomain `finance`, domain `example.com`, service type **HTTP**,
-   URL **`app:3000`**.
+4. **Public hostname** (di dashboard baru: tab _Routes_ → _Add route_ → _Published
+   application_): subdomain `finance`, domain `example.com`, service type **HTTP**, URL
+   **`app:3000`**. Isi persis `app:3000`, **bukan** IP server: cloudflared berjalan di jaringan
+   Docker yang sama dengan container `app`, sedangkan port 3000 di server sengaja hanya
+   dibuka untuk `127.0.0.1`, jadi IP LAN server tidak bisa dijangkau dan hasilnya error 502.
 
 > **Opsional, lapisan ekstra:** pasang **Cloudflare Access** (gratis) di hostname yang sama dengan
 > policy "email = emailmu". Orang asing bahkan tidak bisa melihat halaman login.
@@ -123,6 +126,7 @@ sekali** supaya yakin backup-nya benar-benar bisa dipakai.
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Google: `redirect_uri_mismatch`               | `APP_URL` di `.env` tidak sama persis dengan redirect URI di Google Console (cek `https`, subdomain, tanpa `/` di akhir) |
 | Kembali ke login dengan "tidak punya akses"   | Email belum ada di `ALLOWED_EMAILS` atau di _Test users_ Google                                                          |
-| Cloudflare error 502 / 1033                   | Container `app` belum healthy, atau service URL tunnel bukan `http://app:3000`                                           |
+| Cloudflare error 502 / 1033                   | Container `app` belum healthy, atau service URL tunnel bukan `http://app:3000` (mis. diisi IP server)                    |
+| Domain "not resolved" / `NXDOMAIN`            | DNS router/ISP masih menyimpan jawaban "tidak ada" dari sebelum route dibuat (sampai 30 menit). Cek `nslookup <domain> 1.1.1.1`; kalau di situ sudah ada IP, tunggu atau flush DNS |
 | `docker compose up` gagal "set X in .env"     | Variabel wajib di `.env` masih kosong                                                                                    |
 | App tidak bisa diakses setelah restart server | `sudo systemctl enable --now docker`, lalu `docker compose ps`                                                           |
