@@ -151,6 +151,15 @@
     user-select: none;
   }
 
+  /* Sheet actions pinned to the bottom (SheetFooter in Sheet.tsx). The keyboard covers the
+     home-indicator area, so while it is up the footer hugs it without the safe-area gap. */
+  .sheet-footer {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+  }
+  html[data-keyboard] .sheet-footer {
+    padding-bottom: 0.75rem;
+  }
+
   /* Toasts rise in from the bottom (a plain fade with reduced motion). */
   .toast {
     animation: toast-fade 150ms ease-out;

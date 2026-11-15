@@ -20,6 +20,8 @@ type Props = {
 
 /** True inside a sheet that is animating closed, so a sheet opened from its content closes too. */
 const ParentClosing = createContext(false)
+/** Lets a SheetFooter tell its own sheet where it is (a nested sheet provides its own). */
+const FooterSlot = createContext<((footer: HTMLElement | null) => void) | null>(null)
 /** What had focus before each sheet opened, to return to it (see handleClose). */
 const openers = new WeakMap<HTMLDialogElement, HTMLElement>()
 
@@ -52,6 +54,9 @@ export function Sheet({ open, onClose, title, children }: Props) {
     latest.current = { isOpen, onClose }
   })
   const pressedBackdrop = useRef(false)
+  const header = useRef<HTMLDivElement>(null)
+  const body = useRef<HTMLDivElement>(null)
+  const [footer, setFooter] = useState<HTMLElement | null>(null)
 
   useLayoutEffect(() => {
     const dialog = ref.current
@@ -76,6 +81,31 @@ export function Sheet({ open, onClose, title, children }: Props) {
     const timer = window.setTimeout(() => dialog.close(), transitionMs(dialog) + 40)
     return () => window.clearTimeout(timer)
   }, [isOpen])
+
+  // Content scrolls beneath the sticky header and footer: draw a divider on the edge it passes
+  // under, and keep a field that gets focus (Tab, or the keyboard opening) clear of both.
+  useLayoutEffect(() => {
+    const dialog = ref.current
+    const top = header.current
+    const content = body.current
+    if (!rendered || !dialog || !top || !content) return
+    const update = () => {
+      const below = dialog.scrollHeight - dialog.scrollTop - dialog.clientHeight
+      top.toggleAttribute('data-scrolled', dialog.scrollTop > 0)
+      footer?.toggleAttribute('data-stuck', below > 1)
+      dialog.style.scrollPaddingTop = `${top.offsetHeight}px`
+      dialog.style.scrollPaddingBottom = footer ? `${footer.offsetHeight}px` : ''
+    }
+    update()
+    dialog.addEventListener('scroll', update, { passive: true })
+    const resize = new ResizeObserver(update) // the keyboard, an error message, a longer list
+    resize.observe(dialog)
+    resize.observe(content)
+    return () => {
+      dialog.removeEventListener('scroll', update)
+      resize.disconnect()
+    }
+  }, [rendered, footer])
 
   useEffect(() => {
     const dialog = ref.current
@@ -132,10 +162,16 @@ export function Sheet({ open, onClose, title, children }: Props) {
       {rendered && (
         <ParentClosing value={closing}>
           {/* inert while closing: a second tap on "Simpan" during the exit must not save twice */}
-          <div inert={closing} className="pb-[calc(env(safe-area-inset-bottom)+1.25rem)]">
+          <div
+            ref={body}
+            inert={closing}
+            // A footer brings its own bottom spacing (safe area included).
+            className={footer ? undefined : 'pb-[calc(env(safe-area-inset-bottom)+1.25rem)]'}
+          >
             <div
+              ref={header}
               data-sheet-grab
-              className="sticky top-0 z-10 touch-none bg-white px-4 pt-3 pb-4 dark:bg-slate-900"
+              className="sticky top-0 z-10 touch-none border-b border-transparent bg-white px-4 pt-3 pb-4 transition-colors data-scrolled:border-slate-200 dark:bg-slate-900 dark:data-scrolled:border-slate-800"
             >
               <div
                 aria-hidden
@@ -153,11 +189,32 @@ export function Sheet({ open, onClose, title, children }: Props) {
                 </button>
               </div>
             </div>
-            <div className="px-4">{view.children}</div>
+            <FooterSlot value={setFooter}>
+              <div className="px-4">{view.children}</div>
+            </FooterSlot>
           </div>
         </ParentClosing>
       )}
     </dialog>
+  )
+}
+
+/**
+ * The sheet's main actions ("Simpan"), pinned to the bottom edge while a long form scrolls
+ * beneath them, so they stay one tap away (on Android, right above the keyboard). When the
+ * content is short it just sits after it. Put it last in the sheet: in a form, last in the
+ * <form>, after any secondary actions such as "Hapus".
+ */
+export function SheetFooter({ children }: { children: ReactNode }) {
+  const register = useContext(FooterSlot)
+  return (
+    <div
+      ref={register ?? undefined}
+      data-sheet-footer
+      className="sheet-footer sticky bottom-0 z-10 -mx-4 border-t border-transparent bg-white px-4 pt-3 transition-colors data-stuck:border-slate-200 dark:bg-slate-900 dark:data-stuck:border-slate-800"
+    >
+      {children}
+    </div>
   )
 }
 

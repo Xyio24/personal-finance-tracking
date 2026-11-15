@@ -96,6 +96,61 @@ test('the amount field is ready to type in "Isi tabungan"', async ({ page }) => 
   await expect(page.locator('#move-amount')).toBeFocused()
 })
 
+test('"Simpan" stays at the bottom of a long sheet while the form scrolls beneath it', async ({
+  page,
+}) => {
+  await openApp(page)
+  await goTo(page, 'Tabungan')
+  await page.getByRole('button', { name: 'Tabungan baru' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Tabungan baru' })
+  await handlePoint(sheet) // done sliding in
+  const header = sheet.locator('[data-sheet-grab]')
+  const footer = sheet.locator('[data-sheet-footer]')
+  const save = footer.getByRole('button', { name: 'Simpan' })
+
+  expect(await sheet.evaluate((d) => d.scrollHeight > d.clientHeight), 'form is long').toBe(true)
+  await expect(save).toBeInViewport({ ratio: 1 })
+  await expect(footer).toHaveAttribute('data-stuck', '') // divider: more fields below
+  await expect(header).not.toHaveAttribute('data-scrolled')
+
+  // At the end the button sits after the last field again, and the header gets its divider.
+  await sheet.evaluate((d) => d.scrollTo({ top: d.scrollHeight }))
+  await expect(footer).not.toHaveAttribute('data-stuck')
+  await expect(header).toHaveAttribute('data-scrolled', '')
+
+  // A field that gets focus is scrolled clear of the footer, and of the header going up.
+  await sheet.evaluate((d) => d.scrollTo({ top: 0 }))
+  await expect(footer).toHaveAttribute('data-stuck', '')
+  const lastColor = sheet.getByRole('group', { name: 'Warna' }).getByRole('button').last()
+  await lastColor.focus()
+  const below = await lastColor.boundingBox()
+  const bar = await footer.boundingBox()
+  expect((below?.y ?? 0) + (below?.height ?? 0)).toBeLessThanOrEqual(bar?.y ?? 0)
+  const name = sheet.getByRole('textbox', { name: 'Nama tabungan' })
+  await name.focus()
+  const above = await name.boundingBox()
+  const top = await header.boundingBox()
+  expect(above?.y ?? 0).toBeGreaterThanOrEqual((top?.y ?? 0) + (top?.height ?? 0))
+
+  // Enter in a field still saves the form.
+  await name.fill('Liburan')
+  await name.press('Enter')
+  await expect(sheet).toBeHidden()
+  await expect(page.getByRole('heading', { name: 'Liburan' })).toBeVisible() // its detail page
+})
+
+test('a short sheet keeps its buttons right after the content', async ({ page }) => {
+  await openApp(page)
+  await goTo(page, 'Tabungan')
+  await page.getByRole('link', { name: /Dana Darurat/ }).click()
+  await page.getByRole('button', { name: 'Isi', exact: true }).click()
+  const sheet = page.getByRole('dialog', { name: 'Isi tabungan' })
+  await handlePoint(sheet)
+  expect(await sheet.evaluate((d) => d.scrollHeight > d.clientHeight)).toBe(false)
+  await expect(sheet.locator('[data-sheet-footer]')).not.toHaveAttribute('data-stuck')
+  await expect(sheet.getByRole('button', { name: 'Isi tabungan' })).toBeInViewport({ ratio: 1 })
+})
+
 test.describe('with reduced motion', () => {
   test.use({ reducedMotion: 'reduce' })
 

@@ -10,6 +10,7 @@ import { useCreateDebt, useUpdateDebt } from '../lib/queries'
 import { AmountInput } from './AmountInput'
 import { AccountPicker, DateField } from './Pickers'
 import { SegmentedControl } from './SegmentedControl'
+import { SheetFooter } from './Sheet'
 import { dangerButtonClass, inputClass, labelClass, primaryButtonClass } from './ui'
 
 const directionOptions = [
@@ -215,17 +216,19 @@ export function DebtForm({
         </p>
       )}
 
-      <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
-        {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
-        Simpan
-      </button>
-
       {debt && onDelete && (
         <button type="button" onClick={onDelete} className={dangerButtonClass}>
           <Trash2 className="size-4" aria-hidden />
           Hapus {debt.direction === 'payable' ? 'hutang' : 'piutang'} ini
         </button>
       )}
+
+      <SheetFooter>
+        <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
+          {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+          Simpan
+        </button>
+      </SheetFooter>
     </form>
   )
 }

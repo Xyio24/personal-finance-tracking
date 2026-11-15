@@ -6,7 +6,7 @@ import { ConfirmSheet } from '../components/ConfirmSheet'
 import { ColorPicker, IconPicker } from '../components/Pickers'
 import { ListSkeleton, LoadError } from '../components/QueryState'
 import { SegmentedControl } from '../components/SegmentedControl'
-import { Sheet } from '../components/Sheet'
+import { Sheet, SheetFooter } from '../components/Sheet'
 import { HeaderIconButton, SubPageHeader } from '../components/SubPageHeader'
 import {
   cardClass,
@@ -203,11 +203,6 @@ function CategoryForm({
         </p>
       )}
 
-      <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
-        {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
-        Simpan
-      </button>
-
       {category && (
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -269,6 +264,13 @@ function CategoryForm({
           }}
         />
       )}
+
+      <SheetFooter>
+        <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
+          {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+          Simpan
+        </button>
+      </SheetFooter>
     </form>
   )
 }

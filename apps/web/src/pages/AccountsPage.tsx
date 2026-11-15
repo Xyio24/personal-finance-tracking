@@ -6,7 +6,7 @@ import { AccountBadge } from '../components/Badges'
 import { ConfirmSheet } from '../components/ConfirmSheet'
 import { ListSkeleton, LoadError } from '../components/QueryState'
 import { SegmentedControl } from '../components/SegmentedControl'
-import { Sheet } from '../components/Sheet'
+import { Sheet, SheetFooter } from '../components/Sheet'
 import { HeaderIconButton, SubPageHeader } from '../components/SubPageHeader'
 import {
   cardClass,
@@ -214,11 +214,6 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
         </p>
       )}
 
-      <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
-        {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
-        Simpan
-      </button>
-
       {account && (
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -280,6 +275,13 @@ function AccountForm({ account, onDone }: { account: Account | null; onDone: () 
           }}
         />
       )}
+
+      <SheetFooter>
+        <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
+          {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+          Simpan
+        </button>
+      </SheetFooter>
     </form>
   )
 }

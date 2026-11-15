@@ -14,6 +14,7 @@ import { undoable } from '../lib/toast'
 import { AmountInput } from './AmountInput'
 import { CategoryBadge } from './Badges'
 import { ColorPicker, IconPicker } from './Pickers'
+import { SheetFooter } from './Sheet'
 import {
   dangerButtonClass,
   inputClass,
@@ -174,11 +175,6 @@ export function GoalForm({
         </p>
       )}
 
-      <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
-        {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
-        Simpan
-      </button>
-
       {goal && (
         <>
           <div className="grid grid-cols-2 gap-3">
@@ -217,6 +213,13 @@ export function GoalForm({
           </div>
         </>
       )}
+
+      <SheetFooter>
+        <button type="submit" disabled={!valid || saving} className={primaryButtonClass}>
+          {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+          Simpan
+        </button>
+      </SheetFooter>
     </form>
   )
 }

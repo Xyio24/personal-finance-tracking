@@ -2,7 +2,7 @@ import type { Account, Category, TransactionFilters, TransactionType } from '@fi
 import { transactionTypes } from '../lib/visuals'
 import { AccountBadge, CategoryBadge } from './Badges'
 import { SegmentedControl } from './SegmentedControl'
-import { Sheet } from './Sheet'
+import { Sheet, SheetFooter } from './Sheet'
 import { chipClass, labelClass, primaryButtonClass, secondaryButtonClass } from './ui'
 
 type Props = {
@@ -108,14 +108,16 @@ export function FilterSheet({
           </div>
         </fieldset>
 
-        <div className="grid grid-cols-2 gap-3 pt-1">
-          <button type="button" onClick={onReset} className={secondaryButtonClass}>
-            Reset
-          </button>
-          <button type="button" onClick={onClose} className={primaryButtonClass}>
-            Selesai
-          </button>
-        </div>
+        <SheetFooter>
+          <div className="grid grid-cols-2 gap-3">
+            <button type="button" onClick={onReset} className={secondaryButtonClass}>
+              Reset
+            </button>
+            <button type="button" onClick={onClose} className={primaryButtonClass}>
+              Selesai
+            </button>
+          </div>
+        </SheetFooter>
       </div>
     </Sheet>
   )

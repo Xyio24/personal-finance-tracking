@@ -16,6 +16,7 @@ import { undoCreate, useSaveTransaction } from '../lib/queries'
 import { toast, undoable } from '../lib/toast'
 import { AmountInput } from './AmountInput'
 import { AccountPicker, DateField } from './Pickers'
+import { SheetFooter } from './Sheet'
 import { dangerButtonClass, inputClass, labelClass, primaryButtonClass } from './ui'
 
 /**
@@ -146,17 +147,19 @@ export function GoalMoveForm({
         </p>
       )}
 
-      <button type="submit" disabled={!valid || save.isPending} className={primaryButtonClass}>
-        {save.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
-        {move ? 'Simpan' : isDeposit ? 'Isi tabungan' : 'Culik 🥷'}
-      </button>
-
       {move && onDelete && (
         <button type="button" onClick={onDelete} className={dangerButtonClass}>
           <Trash2 className="size-4" aria-hidden />
           Hapus catatan ini
         </button>
       )}
+
+      <SheetFooter>
+        <button type="submit" disabled={!valid || save.isPending} className={primaryButtonClass}>
+          {save.isPending && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+          {move ? 'Simpan' : isDeposit ? 'Isi tabungan' : 'Culik 🥷'}
+        </button>
+      </SheetFooter>
     </form>
   )
 }
