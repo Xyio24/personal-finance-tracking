@@ -315,9 +315,10 @@ export function BottomNav({ onQuickAdd }: { onQuickAdd: () => void }) {
           type="button"
           onClick={onQuickAdd}
           aria-label="Catat transaksi"
-          className="glass-button pointer-events-auto flex size-[3.875rem] shrink-0 items-center justify-center rounded-full text-white"
+          // The same clear glass as the bar; the brand color is in the icon only.
+          className="glass glass-button pointer-events-auto flex size-[3.875rem] shrink-0 items-center justify-center rounded-full text-emerald-600 dark:text-emerald-400"
         >
-          <Plus className="size-7" aria-hidden />
+          <Plus className="size-7" strokeWidth={2.5} aria-hidden />
         </button>
       </div>
     </nav>

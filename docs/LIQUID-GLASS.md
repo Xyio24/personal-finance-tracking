@@ -39,16 +39,21 @@ Inside the capsule, from back to front:
      tabs in the active color, aligned to the real ones and magnified while lifted. The copy is
      what you "see through" the pill.
 
-The "+" is a separate round glass button tinted with the brand color, to the right of the
-capsule. Don't put it in the middle of the capsule: the pill would have to slide over it.
+The "+" is a separate round button of the **same clear glass**, to the right of the capsule.
+Only its icon carries the brand color. Don't put it in the middle of the capsule: the pill
+would have to slide over it.
 
 ## 2. Principles (why it looks the way it does)
 
-- **Clear, not frosted.** Use a thin tint, a light blur and strong saturation, so the page's
-  colors come through vividly. Blur only enough that text behind the glass can't be read
-  (6px). Heavy blur plus a heavy tint reads as plastic, not glass.
+- **Clear, not frosted.** Use a very thin tint, a barely-there blur and strong saturation, so
+  the page's colors come through vividly. Blur only enough that text behind the glass stops
+  competing with the labels (2px).
+  - 6px or more, or a thick inner glow, reads as frosted plastic.
+  - 1px leaves text behind readable through the labels.
+
+  The user asked twice for "more transparent, less blur", so don't drift back toward frosted.
 - **Light comes from the top-left.** The rim is brightest on the top and left edges and
-  dimmer on the bottom and right. A frosty inner glow runs along all edges. A soft shadow below
+  dimmer on the bottom and right. A thin inner glow (6px) runs along all edges. A soft shadow below
   lifts the capsule off the page.
 - **The color lives in the pill.** The real tabs are never colored. The active color is
   carried only by the pill's copy, so a tab the pill has left (sliding or dragged away) is never
@@ -70,14 +75,18 @@ capsule. Don't put it in the middle of the capsule: the pill would have to slide
 | Capsule             | height `3.875rem` (62px), `rounded-full`, padding `0.25rem` (4px), `flex-1` |
 | Slots               | 4 equal columns; slot width = row width / 4                                 |
 | Pill at rest        | exactly one slot (so 54px tall, inset 4px inside the capsule)               |
-| "+" button          | `3.875rem` circle, icon 28px (`size-7`), white                              |
+| "+" button          | `3.875rem` circle, `.glass`, icon 28px (`size-7`), stroke 2.5, emerald      |
 | Tab content         | icon 24px (`size-6`), gap 2px, label 11px `font-medium`, truncated          |
 | Scrim               | from 1.5rem above the bar to the bottom edge                                |
 | Page bottom padding | `env(safe-area-inset-bottom) + 5.5rem`                                      |
 | Toasts              | `bottom: env(safe-area-inset-bottom) + 6rem` (above the bar)                |
 
-Colors (Tailwind palette): tab labels `slate-800` (dark: `slate-100`). The active color, i.e.
-the copy inside the pill, is `emerald-600` (dark: `emerald-400`).
+Colors (Tailwind palette):
+
+- Tab labels: `slate-800` (dark: `slate-100`).
+- The "+" icon: `emerald-600` (dark: `emerald-400`).
+- The active color, i.e.
+  the copy inside the pill, is `emerald-600` (dark: `emerald-400`).
 
 ## 4. Materials
 
@@ -87,13 +96,15 @@ Chromium and Safari.
 
 **Capsule `.glass`**
 
-- `background-color`: `rgb(255 255 255 / 0.2)` [`rgb(15 23 42 / 0.36)`]
-- `backdrop-filter: blur(6px) saturate(190%)`, plus the `-webkit-` prefix for Safari.
+- `background-color`: `rgb(255 255 255 / 0.1)` [`rgb(15 23 42 / 0.22)`]
+- `backdrop-filter: blur(2px) saturate(190%)`, plus the `-webkit-` prefix for Safari. The tint
+  and blur are the variables `--glass-tint` and `--glass-blur`.
 - `box-shadow`, in this order:
   - `inset 1.5px 1.5px 0 -0.5px white/0.95` [`/0.28`]: top-left highlight
-  - `inset -1px -1px 0 0 white/0.6` [`/0.1`]: bottom-right rim
+  - `inset -1px -1px 0 0 white/0.7` [`/0.1`]: bottom-right rim
   - `inset 0 0 0 0.5px white/0.6` [`/0.14`]: hairline edge
-  - `inset 0 0 12px 0 white/0.4` [`/0.06`]: frosty inner glow
+  - `inset 0 0 6px 0 white/0.3` [`/0.06`]: thin inner glow. Keep it thin: at 12px/0.4 the
+    whole capsule turns milky.
   - `0 0 0 0.5px slate-900/0.08` [none]: outer hairline, so it holds its edge on white
   - `0 10px 28px -8px slate-900/0.25` [`black/0.55`]: lift shadow
 
@@ -110,19 +121,16 @@ Chromium and Safari.
 - No `backdrop-filter` on the pill. It sits inside the capsule's backdrop root, and the hole
   already hides what it would blur.
 
-**"+" `.glass-button`** (tinted glass)
+**"+" button** (`.glass .glass-button`)
 
-- `background-color: rgb(5 150 105 / 0.85)` [`/0.8`], with the same blur and saturation as
-  the capsule.
-- Rim: `inset 1.5px 1.5px 0 -0.5px white/0.6` [`/0.4`], `inset -1px -1px 0 0 white/0.2`,
-  `inset 0 0 0 0.5px white/0.25` [`/0.15`], `inset 0 0 12px 0 white/0.15`.
-- Shadow: `0 10px 28px -8px emerald-600/0.6` [`black/0.6`].
+- The material is exactly `.glass`, the same as the capsule. `.glass-button` only adds the
+  press behavior.
 - Pressed, it swells instead of sinking: `scale(1.08)` and `brightness(1.1)`, on
   `transform 360ms cubic-bezier(0.3, 1.5, 0.5, 1)`.
 
-**Scrim `.nav-scrim`**: `linear-gradient(to top, slate-50/0.5, slate-50/0)`
-[`slate-950/0.5 → 0`]. Keep it light. Its only job is to keep a busy page from fighting the
-labels.
+**Scrim `.nav-scrim`**: `linear-gradient(to top, slate-50/0.2, slate-50/0)`
+[`slate-950/0.2 → 0`]. Barely there: anything stronger washes out what shows through the
+glass.
 
 **The hole `.tab-links`**: a horizontal mask gradient that is opaque everywhere except between
 `--hole-start` and `--hole-end`, with soft edges (3px outside, 5px inside). Set both prefixed
@@ -192,7 +200,7 @@ belongs to a tab if it equals it or starts with it plus `/` (`/` matches only it
 - **`prefers-reduced-motion`:** the pill jumps (no spring, lift or stretch) and the "+" does
   not scale.
 - **`prefers-reduced-transparency`, or no `backdrop-filter` support:** the capsule becomes
-  solid `slate-100` [`slate-800`] and the "+" solid `emerald-600`.
+  solid `slate-100` [`slate-800`], and so does the "+".
 - **On-screen keyboard up** (`html[data-keyboard]`): the whole nav is hidden.
 
 ## 8. Browser support
@@ -231,7 +239,9 @@ checked on a real iPhone or Mac.
    - mid-drag.
 
    What to look for:
-   - page colors come through the capsule, and text behind it is unreadable;
+   - page colors come through the capsule clearly;
+   - text behind it is soft enough not to compete with the labels;
+   - the capsule does not look milky;
    - the rim is brighter top-left;
    - exactly one green tab;
    - no doubled label under the lens.
