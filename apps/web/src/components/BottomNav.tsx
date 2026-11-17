@@ -44,7 +44,7 @@ function TabLink({ to, label, icon: Icon, end }: Tab) {
       }}
       // Always the resting color: the current tab gets its color from the pill sitting on it, so
       // a tab the pill has left (dragged or sliding away) is never colored twice.
-      className={`${cellClass} rounded-full text-slate-600 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-500 dark:text-slate-300`}
+      className={`${cellClass} rounded-full text-slate-800 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-500 dark:text-slate-100`}
     >
       <Icon className="size-6" aria-hidden />
       <span className="max-w-full truncate px-0.5">{label}</span>
@@ -78,6 +78,7 @@ const DRAG_SLOP = 8 // px a finger moves before a press turns into a drag
  * them in the active color, magnified while it is lifted: that copy is what "shows through" the
  * glass. Copying our own tabs works in every browser, unlike refracting what's behind (only
  * Chromium can filter the backdrop with an SVG). Taps pass through it to the real links.
+ * Full spec (sizes, materials, motion math): docs/LIQUID-GLASS.md.
  */
 function useTabPill() {
   const { pathname } = useLocation()
