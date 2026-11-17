@@ -56,30 +56,31 @@ export function playPageMotion(motion: PageMotion) {
   const frame = document.querySelector<HTMLElement>('[data-page-frame]')
   const clip = frame?.parentElement
   if (!frame || !clip || typeof frame.animate !== 'function') return
-  for (const running of frame.getAnimations()) running.cancel() // rapid taps restart, not stack
+  // A quick tap while a page is still coming in: the newer entrance takes over (for the same
+  // properties the newest animation wins) and the older one runs out on its own. Never cancel()
+  // or finish() it early: in Chromium that could leave the whole page unclickable, every tap
+  // landing on the wrapper instead (seen under CPU load: debts.spec "the wallet you pick" failed
+  // 6 of 8 parallel runs with cancel(), 8 of 8 with finish(), none without).
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (reduce || motion === 'fade') {
-    clip.style.removeProperty('overflow-x') // a fade never pokes past the edge
-    frame.animate([{ opacity: 0 }, { opacity: 1 }], {
-      duration: reduce ? REDUCED_MS : FADE_MS,
-      easing: 'ease-out',
-    })
-    return
-  }
+  const slide = !reduce && motion !== 'fade'
+  // A slide pokes past the screen edge for a moment: clip it so the page never scrolls sideways.
+  // Only while animating, because Safari jitters sticky headers inside overflow: clip.
+  if (slide) clip.style.overflowX = 'clip'
   const x = motion === 'forward' ? SLIDE : -SLIDE
-  // The slide pokes past the screen edge for a moment: clip it so the page never scrolls
-  // sideways. Only while animating, because Safari jitters sticky headers inside overflow: clip.
-  clip.style.overflowX = 'clip'
-  const animation = frame.animate(
-    [
-      { opacity: 0, transform: `translateX(${x}px)` },
-      { opacity: 1, transform: 'none' },
-    ],
-    { duration: SLIDE_MS, easing: EASE }, // fill 'none': nothing remains once it ends
-  )
-  const done = () => {
+  const animation = slide
+    ? frame.animate(
+        [
+          { opacity: 0, transform: `translateX(${x}px)` },
+          { opacity: 1, transform: 'none' },
+        ],
+        { duration: SLIDE_MS, easing: EASE }, // fill 'none': nothing remains once it ends
+      )
+    : frame.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: reduce ? REDUCED_MS : FADE_MS,
+        easing: 'ease-out',
+      })
+  // The clip goes once nothing is moving any more (an older slide may outlast a newer fade).
+  animation.addEventListener('finish', () => {
     if (frame.getAnimations().length === 0) clip.style.removeProperty('overflow-x')
-  }
-  animation.addEventListener('finish', done)
-  animation.addEventListener('cancel', done) // a newer slide still holds the clip
+  })
 }

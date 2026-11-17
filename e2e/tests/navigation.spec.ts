@@ -19,11 +19,11 @@ async function openTransactions(page: Page) {
   return rows
 }
 
-/** First keyframe of the page frame's running entrance (slowed down so it can be read). */
+/** First keyframe of the page frame's newest entrance (slowed down so it can be read). */
 async function entrance(page: Page) {
   return page.evaluate(() => {
     const frame = document.querySelector('[data-page-frame]')
-    const effect = frame?.getAnimations()[0]?.effect as KeyframeEffect | undefined
+    const effect = frame?.getAnimations().at(-1)?.effect as KeyframeEffect | undefined
     const first = effect?.getKeyframes()[0]
     return first ? { transform: first.transform ?? null, opacity: first.opacity } : null
   })
