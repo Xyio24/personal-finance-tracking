@@ -33,7 +33,7 @@ CORS dan cookie selalu _first-party_.
 apps/api         Backend Hono (routes → db), migrasi di apps/api/drizzle
 apps/web         Frontend React (mobile-first)
 packages/shared  Skema Zod & helper yang dipakai bersama (mis. formatRupiah)
-docs/            Panduan deploy
+docs/            Panduan deploy dan desain
 ```
 
 ## Menjalankan di lokal
@@ -96,6 +96,10 @@ tetap mewajibkan session, dan build production tidak berisi kode demo sama sekal
   saat kembali), posisi scroll daftar diingat saat kembali, toast konfirmasi dengan **Urungkan**,
   dan isian yang tidak sengaja tertutup bisa dipulihkan. Semua animasi mengikuti setelan "kurangi
   gerakan" di HP.
+- **Navigasi bawah bergaya _liquid glass_**: kapsul kaca bening yang melayang di atas halaman,
+  dengan pil kaca di tab aktif yang terangkat, meluncur seperti cairan, dan bisa diseret ke tab
+  lain. Spesifikasi lengkapnya (ukuran, material, rumus gerak) ada di
+  [docs/LIQUID-GLASS.md](docs/LIQUID-GLASS.md), supaya bisa ditiru persis.
 - **Salah input bisa diperbaiki**: setiap transaksi, isi/culik, pembayaran hutang, dan hutang/
   piutang itu sendiri (termasuk tanggal, dompet, dan jenisnya) bisa diubah atau dihapus.
   Hutang/piutang dan tabungan bisa dihapus beserta seluruh riwayatnya; konfirmasinya menyebut apa
