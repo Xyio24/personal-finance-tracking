@@ -4,7 +4,7 @@ import type { FormEvent } from 'react'
 import { clearDraft, useDraftField } from '../lib/drafts'
 import { errorMessage } from '../lib/errors'
 import { todayKey } from '../lib/format'
-import { readLastAccount } from '../lib/lastAccount'
+import { readLastAccount, rememberAccount } from '../lib/lastAccount'
 import { useMounted } from '../lib/navigation'
 import { useCreateDebt, useUpdateDebt } from '../lib/queries'
 import { AmountInput } from './AmountInput'
@@ -87,6 +87,7 @@ export function DebtForm({
       : create.mutateAsync(fields)
     request.then(
       (result: Debt) => {
+        if (accountId) rememberAccount(accountId) // the next entry starts with this wallet too
         clearDraft(draftKey)
         if (mounted.current) onDone(result)
       },

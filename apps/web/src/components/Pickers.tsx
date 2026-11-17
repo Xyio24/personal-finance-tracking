@@ -6,6 +6,7 @@ import {
   type CategoryIcon,
   shiftDate,
 } from '@finance/shared'
+import { useEffect, useRef } from 'react'
 import { todayKey } from '../lib/format'
 import { categoryColors, categoryIcons, colorNames } from '../lib/visuals'
 import { AccountBadge } from './Badges'
@@ -95,12 +96,24 @@ export function AccountPicker({
   /** Adds a chip for "no wallet", selected when value is "". */
   noneLabel?: string
 }) {
+  const row = useRef<HTMLDivElement>(null)
+  // The wallet chosen up front (the one used last time) can sit past the edge of the row: start
+  // with it in view, so it is clear where the money goes. After that, a tapped chip is in view.
+  // useEffect, not useLayoutEffect: inside a sheet the dialog only opens in its parent's effect.
+  useEffect(() => {
+    const el = row.current
+    const chosen = el?.querySelector('[aria-pressed="true"]')
+    if (!el || !chosen) return
+    const past = chosen.getBoundingClientRect().right - el.getBoundingClientRect().right
+    if (past > -16) el.scrollLeft += past + 16 // 16 px: the row's own padding
+  }, [])
+
   return (
     // min-w-0: a fieldset defaults to min-width: min-content and would grow with the chip row
     // instead of letting the row scroll, pushing the whole sheet sideways.
     <fieldset className="min-w-0">
       <legend className={labelClass}>{label}</legend>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+      <div ref={row} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
         {accounts.map((account) => (
           <button
             key={account.id}
