@@ -7,7 +7,13 @@ import { defineConfig, devices } from '@playwright/test'
  *
  * Without Playwright's own Chromium (`npx playwright install chromium`), point it at an
  * installed browser instead, e.g. PLAYWRIGHT_CHANNEL=msedge npm run test:e2e
+ *
+ * A server already on the port is reused. If another app holds 5173, pick a free port:
+ * E2E_PORT=5180 npm run test:e2e
  */
+const port = Number(process.env.E2E_PORT) || 5173
+const baseURL = `http://localhost:${port}`
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
@@ -15,7 +21,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL,
     locale: 'id-ID',
     timezoneId: 'Asia/Jakarta',
     trace: 'retain-on-failure',
@@ -27,9 +33,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev:demo',
+    command: `npm run dev:demo -w @finance/web -- --port ${port} --strictPort`,
     cwd: '..',
-    url: 'http://localhost:5173',
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
