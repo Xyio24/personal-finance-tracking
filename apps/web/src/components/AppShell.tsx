@@ -4,7 +4,7 @@ import { BottomNav } from './BottomNav'
 import { PageFrame } from './PageFrame'
 import { QuickAddSheet } from './QuickAddSheet'
 
-/** Mobile-first layout: content column + fixed bottom navigation with a center "+" button. */
+/** Mobile-first layout: content column + a floating glass tab bar with a "+" button beside it. */
 export function AppShell() {
   const [quickAddOpen, setQuickAddOpen] = useState(false)
 
