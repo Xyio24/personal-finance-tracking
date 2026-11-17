@@ -4,7 +4,7 @@ import { expect, goTo, openApp, test } from './helpers'
 type TabName = 'Beranda' | 'Transaksi' | 'Tabungan' | 'Hutang'
 
 /** The glass pill in the bottom nav: its own box (its glass and lens scale around it). */
-const pill = (page: Page) => page.locator('[data-bottom-nav] .tab-pill')
+const pill = (page: Page) => page.locator('[data-bottom-nav] .liquid-pill')
 const tab = (page: Page, name: TabName) => page.getByRole('link', { name, exact: true })
 
 async function center(page: Page, name: TabName) {

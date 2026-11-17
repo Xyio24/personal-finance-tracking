@@ -63,22 +63,17 @@
    * The base rules are the reduced-motion version: fades only, nothing slides by itself.
    */
   .sheet {
-    --sheet-bg: var(--color-white);
     opacity: 0;
     transform: translate3d(0, var(--sheet-drag, 0px), 0);
     transition: opacity 150ms linear;
-    /* Pulled upward, the sheet lifts off the bottom edge; its own shadow fills the gap. */
-    box-shadow: 0 3rem 0 0 var(--sheet-bg);
   }
   .sheet[data-state="open"] {
     opacity: 1;
   }
 
+  /* A light dim only: the sheet is glass and shows the page through it, softened by its own blur. */
   .sheet::backdrop {
-    background-color: rgb(2 6 23 / 0.45);
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
-    /* Opacity also fades the blur (Filter Effects 2), so the blur itself never animates. */
+    background-color: rgb(2 6 23 / 0.3);
     opacity: 0;
     transition: opacity 150ms linear;
   }
@@ -88,16 +83,11 @@
     opacity: calc(1 - var(--sheet-progress, 0));
   }
 
-  @media (prefers-color-scheme: dark) {
-    .sheet {
-      --sheet-bg: var(--color-slate-900);
-    }
-  }
-
   @media (prefers-reduced-motion: no-preference) {
     .sheet {
       opacity: 1;
-      transform: translate3d(0, 100%, 0);
+      /* Past its height: the sheet floats above the bottom edge and casts a shadow. */
+      transform: translate3d(0, calc(100% + 2rem), 0);
       transition: transform var(--sheet-flick, 260ms) cubic-bezier(0.32, 0.72, 0, 1);
     }
     .sheet[data-state="open"] {
@@ -135,12 +125,6 @@
     }
   }
 
-  @media (width >= 40rem) {
-    .sheet {
-      box-shadow: 0 1.5rem 3rem -1rem rgb(0 0 0 / 0.35);
-    }
-  }
-
   /* Nothing lags behind the finger. Must stay after the rules above. */
   .sheet[data-dragging],
   .sheet[data-dragging]::backdrop {
@@ -155,6 +139,7 @@
      home-indicator area, so while it is up the footer hugs it without the safe-area gap. */
   .sheet-footer {
     padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+    transition: background-color 150ms linear;
   }
   html[data-keyboard] .sheet-footer {
     padding-bottom: 0.75rem;
@@ -198,47 +183,128 @@
   }
 
   /*
-   * Liquid glass (the bottom nav). Spec and the why behind each number: docs/LIQUID-GLASS.md.
-   * Clear glass: a thin tint over a barely blurred (just enough that text behind can't compete
-   * with the labels), strongly saturated backdrop, so the page's colors come through; a crisp rim
-   * (brightest top-left, where the light comes from) with a thin inner glow gives it an edge, a
-   * soft shadow lifts it off the page. Used by the tab bar and the "+" alike.
+   * Liquid glass. Spec, and the why behind each number: docs/LIQUID-GLASS.md.
+   * Glass is for the layer of controls floating above the content, never for the content itself
+   * (cards, lists, text stay solid). All of it shares one rim, brightest top-left where the light
+   * comes from, in three materials:
+   * - .glass: clear, for controls over the page (tab bar, "+", icon buttons). Barely blurred, so
+   *   the page's colors come through, just enough that text behind doesn't fight the labels.
+   * - .glass-regular: frosted, for surfaces you read and type on (sheets, toasts).
+   * - tinted (.btn-primary, .btn-danger): buttons made of colored glass.
    */
-  .glass {
+  :root {
+    --glass-rim:
+      inset 1.5px 1.5px 0 -0.5px rgb(255 255 255 / 0.95), inset -1px -1px 0 0 rgb(255 255 255 / 0.7),
+      inset 0 0 0 0.5px rgb(255 255 255 / 0.6), inset 0 0 6px 0 rgb(255 255 255 / 0.3);
+    /* On colored glass a full-strength rim reads as a white border. */
+    --glass-rim-soft:
+      inset 1.5px 1.5px 0 -0.5px rgb(255 255 255 / 0.5), inset -1px -1px 0 0 rgb(255 255 255 / 0.15),
+      inset 0 0 0 0.5px rgb(255 255 255 / 0.2), inset 0 0 8px 0 rgb(255 255 255 / 0.12);
+    --glass-edge: 0 0 0 0.5px rgb(15 23 42 / 0.08);
+    --glass-shadow: 0 10px 28px -8px rgb(15 23 42 / 0.25);
+    --glass-shadow-sm: 0 4px 12px -4px rgb(15 23 42 / 0.2);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --glass-rim:
+        inset 1.5px 1.5px 0 -0.5px rgb(255 255 255 / 0.28), inset -1px -1px 0 0 rgb(
+          255 255 255 / 0.1
+        ),
+        inset 0 0 0 0.5px rgb(255 255 255 / 0.14), inset 0 0 6px 0 rgb(255 255 255 / 0.06);
+      --glass-rim-soft:
+        inset 1.5px 1.5px 0 -0.5px rgb(255 255 255 / 0.3), inset -1px -1px 0 0 rgb(
+          255 255 255 / 0.08
+        ),
+        inset 0 0 0 0.5px rgb(255 255 255 / 0.12), inset 0 0 8px 0 rgb(255 255 255 / 0.06);
+      --glass-edge: 0 0 #0000;
+      --glass-shadow: 0 10px 28px -8px rgb(0 0 0 / 0.55);
+      --glass-shadow-sm: 0 4px 12px -4px rgb(0 0 0 / 0.5);
+    }
+  }
+
+  .glass,
+  .glass-regular {
     --glass-tint: rgb(255 255 255 / 0.1);
     --glass-blur: 2px;
     --glass-saturate: 190%;
     background-color: var(--glass-tint);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    box-shadow:
-      inset 1.5px 1.5px 0 -0.5px rgb(255 255 255 / 0.95),
-      inset -1px -1px 0 0 rgb(255 255 255 / 0.7),
-      inset 0 0 0 0.5px rgb(255 255 255 / 0.6),
-      inset 0 0 6px 0 rgb(255 255 255 / 0.3),
-      0 0 0 0.5px rgb(15 23 42 / 0.08),
-      0 10px 28px -8px rgb(15 23 42 / 0.25);
+    box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-shadow);
   }
-  .tab-pill {
+  .glass-regular {
+    --glass-tint: rgb(255 255 255 / 0.62);
+    --glass-blur: 20px;
+    --glass-saturate: 180%;
+  }
+  /* Small glass (icon buttons): a shadow its size. */
+  .glass-sm {
+    --glass-shadow: var(--glass-shadow-sm);
+  }
+
+  /* Buttons: capsules of glass. Primary and danger are tinted glass, secondary is clear. */
+  .btn-primary {
+    background-color: rgb(5 150 105 / 0.92);
+    color: var(--color-white);
+    box-shadow:
+      var(--glass-rim-soft),
+      0 6px 16px -6px rgb(5 150 105 / 0.55);
+  }
+  .btn-secondary {
+    background-color: rgb(255 255 255 / 0.55);
+    color: var(--color-slate-700);
+    box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-shadow-sm);
+  }
+  .btn-danger {
+    background-color: rgb(244 63 94 / 0.1);
+    color: var(--color-rose-600);
+    box-shadow: var(--glass-rim), var(--glass-edge), var(--glass-shadow-sm);
+  }
+
+  /* Pressed, glass swells and brightens instead of sinking: round buttons more, wide ones less. */
+  .glass-button,
+  .glass-press {
+    transition:
+      transform 360ms cubic-bezier(0.3, 1.5, 0.5, 1),
+      filter 200ms ease-out;
+  }
+  .glass-button:active {
+    transform: scale(1.08);
+    filter: brightness(1.1);
+  }
+  .glass-press:active:not(:disabled) {
+    transform: scale(1.03);
+    filter: brightness(1.06);
+  }
+  .glass-button:focus-visible {
+    outline: 2px solid var(--color-emerald-500);
+    outline-offset: 3px;
+  }
+
+  /*
+   * The liquid pill (components/useLiquidPill.ts): bottom-nav tabs and segmented controls.
+   * The engine sets --lift on .liquid-pill, 0 resting .. 1 lifted.
+   */
+  .liquid-pill {
     transition: opacity 150ms linear;
   }
-  /* The gap in the real tabs under the pill (--hole-start/--hole-end, set by BottomNav.tsx). */
-  .tab-links {
+  /* The gap in the real options under the pill (--hole-start/--hole-end, set every frame). */
+  .liquid-links {
     --hole-start: -99px;
     --hole-end: -99px;
-    --tab-hole: linear-gradient(
+    --liquid-hole: linear-gradient(
       to right,
       #000 calc(var(--hole-start) - 3px),
       transparent calc(var(--hole-start) + 5px),
       transparent calc(var(--hole-end) - 5px),
       #000 calc(var(--hole-end) + 3px)
     );
-    -webkit-mask-image: var(--tab-hole);
-    mask-image: var(--tab-hole);
+    -webkit-mask-image: var(--liquid-hole);
+    mask-image: var(--liquid-hole);
   }
-  /* Resting, the pill is a faint shade on the glass; lifted (--lift 1) it becomes a clear lens with
-     its own rim and a deeper shadow. Two layers so each fades on its own: shade below, light on top. */
-  .tab-pill-glass {
+  /* Tab bar pill. Resting, a faint shade on the glass; lifted, a clear lens with its own rim and
+     a deeper shadow. Two layers so each fades on its own: shade below, light on top. */
+  .nav-pill {
     background-color: rgb(15 23 42 / calc(0.08 * (1 - var(--lift, 0))));
     background-image: linear-gradient(
       rgb(255 255 255 / calc(0.28 * var(--lift, 0))),
@@ -251,41 +317,88 @@
       0 calc(10px * var(--lift, 0)) calc(24px * var(--lift, 0)) -4px
       rgb(15 23 42 / calc(0.25 * var(--lift, 0)));
   }
-  /* The current tab sits under the pill, so its keyboard focus ring goes on the pill. */
-  .tab-row:has([aria-current="page"]:focus-visible) .tab-pill-glass {
+  /* Segmented control: a recessed track (a shade, so it works on the page and on glass) and a
+     solid white pill that turns into a clear lens when lifted. */
+  .segmented {
+    background-color: rgb(15 23 42 / 0.07);
+  }
+  .seg-pill {
+    background-color: rgb(255 255 255 / calc(1 - 0.72 * var(--lift, 0)));
+    box-shadow:
+      inset 1.5px 1.5px 0 -0.5px rgb(255 255 255 / calc(0.95 * var(--lift, 0))),
+      inset -1px -1px 0 0 rgb(255 255 255 / calc(0.6 * var(--lift, 0))),
+      inset 0 0 10px 0 rgb(255 255 255 / calc(0.5 * var(--lift, 0))),
+      0 1px 3px rgb(15 23 42 / 0.12),
+      0 calc(10px * var(--lift, 0)) calc(24px * var(--lift, 0)) -4px
+      rgb(15 23 42 / calc(0.25 * var(--lift, 0)));
+  }
+  /* The chosen option sits under the pill, so its keyboard focus ring goes on the pill. */
+  .liquid-row:has([aria-current="page"]:focus-visible, [aria-checked="true"]:focus-visible)
+    .liquid-shape {
     outline: 2px solid var(--color-emerald-500);
     outline-offset: 2px;
   }
-  /* The "+" is a .glass circle too; this adds how it reacts to a press. */
-  .glass-button {
-    transition:
-      transform 360ms cubic-bezier(0.3, 1.5, 0.5, 1),
-      filter 200ms ease-out;
-  }
-  /* Pressed, glass swells and brightens instead of sinking. */
-  .glass-button:active {
-    transform: scale(1.08);
-    filter: brightness(1.1);
-  }
-  .glass-button:focus-visible {
-    outline: 2px solid var(--color-emerald-500);
-    outline-offset: 3px;
-  }
-  /* Just enough fade under the bar that a busy page doesn't fight its labels. */
+
+  /* Just enough fade under the tab bar that a busy page doesn't fight its labels. */
   .nav-scrim {
     background: linear-gradient(to top, rgb(248 250 252 / 0.2), rgb(248 250 252 / 0));
   }
+  /* A bar over scrolling content (iOS's scroll edge effect): instead of a hard-edged bar, the
+     page fades and softens toward it. The bar needs position and a z-index. */
+  .scroll-edge::before,
+  .scroll-edge-bottom::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+  .scroll-edge::before {
+    inset: 0 0 -1.25rem;
+    background: linear-gradient(to bottom, rgb(248 250 252 / 0.9), rgb(248 250 252 / 0));
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  }
+  /* The same, for a bar at the bottom (the full-page form's Simpan). */
+  .scroll-edge-bottom::before {
+    inset: -1.25rem 0 0;
+    background: linear-gradient(to top, rgb(248 250 252 / 0.9), rgb(248 250 252 / 0));
+    -webkit-mask-image: linear-gradient(to top, #000 55%, transparent);
+    mask-image: linear-gradient(to top, #000 55%, transparent);
+  }
+  /* The sheet's bars are clear until content scrolls beneath them; then they frost over it. */
+  .sheet-bar {
+    transition: background-color 150ms linear;
+  }
+  .sheet-bar[data-scrolled],
+  .sheet-footer[data-stuck] {
+    background-color: rgb(255 255 255 / 0.6);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+  }
+
   @media (prefers-color-scheme: dark) {
     .glass {
       --glass-tint: rgb(15 23 42 / 0.22);
-      box-shadow:
-        inset 1.5px 1.5px 0 -0.5px rgb(255 255 255 / 0.28),
-        inset -1px -1px 0 0 rgb(255 255 255 / 0.1),
-        inset 0 0 0 0.5px rgb(255 255 255 / 0.14),
-        inset 0 0 6px 0 rgb(255 255 255 / 0.06),
-        0 10px 28px -8px rgb(0 0 0 / 0.55);
     }
-    .tab-pill-glass {
+    .glass-regular {
+      --glass-tint: rgb(15 23 42 / 0.66);
+    }
+    .btn-primary {
+      box-shadow:
+        var(--glass-rim-soft),
+        0 6px 16px -6px rgb(0 0 0 / 0.5);
+    }
+    .btn-secondary {
+      background-color: rgb(255 255 255 / 0.08);
+      color: var(--color-slate-200);
+    }
+    .btn-danger {
+      background-color: rgb(244 63 94 / 0.14);
+      color: var(--color-rose-400);
+    }
+    .nav-pill {
       background-color: rgb(255 255 255 / calc(0.12 * (1 - var(--lift, 0))));
       background-image: linear-gradient(
         rgb(255 255 255 / calc(0.14 * var(--lift, 0))),
@@ -298,37 +411,82 @@
         0 calc(10px * var(--lift, 0)) calc(24px * var(--lift, 0)) -4px
         rgb(0 0 0 / calc(0.5 * var(--lift, 0)));
     }
+    .segmented {
+      background-color: rgb(255 255 255 / 0.08);
+    }
+    .seg-pill {
+      background-color: rgb(255 255 255 / calc(0.2 - 0.08 * var(--lift, 0)));
+      box-shadow:
+        inset 1.5px 1.5px 0 -0.5px rgb(255 255 255 / calc(0.15 + 0.2 * var(--lift, 0))),
+        inset -1px -1px 0 0 rgb(255 255 255 / calc(0.12 * var(--lift, 0))),
+        inset 0 0 10px 0 rgb(255 255 255 / calc(0.08 * var(--lift, 0))),
+        0 1px 3px rgb(0 0 0 / 0.3),
+        0 calc(10px * var(--lift, 0)) calc(24px * var(--lift, 0)) -4px
+        rgb(0 0 0 / calc(0.5 * var(--lift, 0)));
+    }
     .nav-scrim {
       background: linear-gradient(to top, rgb(2 6 23 / 0.2), rgb(2 6 23 / 0));
     }
+    .scroll-edge::before {
+      background: linear-gradient(to bottom, rgb(2 6 23 / 0.9), rgb(2 6 23 / 0));
+    }
+    .scroll-edge-bottom::before {
+      background: linear-gradient(to top, rgb(2 6 23 / 0.9), rgb(2 6 23 / 0));
+    }
+    .sheet-bar[data-scrolled],
+    .sheet-footer[data-stuck] {
+      background-color: rgb(15 23 42 / 0.6);
+    }
   }
   @media (prefers-reduced-motion: reduce) {
-    .glass-button {
+    .glass-button,
+    .glass-press {
       transition: filter 150ms linear;
     }
-    .glass-button:active {
+    .glass-button:active,
+    .glass-press:active:not(:disabled) {
       transform: none;
     }
   }
-  /* Glass you can't see through: solid surfaces, same shape. */
+  /* Glass you can't see through: solid surfaces, same shapes. */
   @media (prefers-reduced-transparency: reduce) {
     .glass {
       background-color: var(--color-slate-100);
+    }
+    .glass-regular,
+    .sheet-bar[data-scrolled],
+    .sheet-footer[data-stuck] {
+      background-color: var(--color-white);
     }
   }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .glass {
       background-color: var(--color-slate-100);
     }
+    .glass-regular,
+    .sheet-bar[data-scrolled],
+    .sheet-footer[data-stuck] {
+      background-color: var(--color-white);
+    }
     @media (prefers-color-scheme: dark) {
       .glass {
         background-color: var(--color-slate-800);
+      }
+      .glass-regular,
+      .sheet-bar[data-scrolled],
+      .sheet-footer[data-stuck] {
+        background-color: var(--color-slate-900);
       }
     }
   }
   @media (prefers-color-scheme: dark) and (prefers-reduced-transparency: reduce) {
     .glass {
       background-color: var(--color-slate-800);
+    }
+    .glass-regular,
+    .sheet-bar[data-scrolled],
+    .sheet-footer[data-stuck] {
+      background-color: var(--color-slate-900);
     }
   }
 
