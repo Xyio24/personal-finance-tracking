@@ -24,15 +24,15 @@ export function Toaster() {
           onBlur={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget as Node | null)) resumeToast()
           }}
-          className="toast pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl bg-slate-900 py-2 pr-2 pl-4 text-sm text-white shadow-lg dark:bg-slate-100 dark:text-slate-900"
+          className="toast glass-regular pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-3xl py-2 pr-2 pl-4 text-sm text-slate-900 dark:text-white"
         >
           {toast.tone === 'success' ? (
             <CircleCheck
-              className="size-4 shrink-0 text-emerald-400 dark:text-emerald-600"
+              className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
               aria-hidden
             />
           ) : (
-            <Info className="size-4 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden />
+            <Info className="size-4 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
           )}
           <span className="min-w-0 flex-1 py-1.5">{toast.message}</span>
           {toast.action && (
@@ -43,7 +43,7 @@ export function Toaster() {
                 dismissToast()
                 run?.()
               }}
-              className="shrink-0 rounded-xl px-3 py-1.5 font-semibold text-emerald-300 active:bg-white/10 dark:text-emerald-700 dark:active:bg-slate-900/10"
+              className="shrink-0 rounded-full px-3 py-1.5 font-semibold text-emerald-700 active:bg-slate-900/5 dark:text-emerald-300 dark:active:bg-white/10"
             >
               {toast.action.label}
             </button>

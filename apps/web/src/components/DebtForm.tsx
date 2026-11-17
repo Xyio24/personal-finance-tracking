@@ -102,7 +102,7 @@ export function DebtForm({
     <form onSubmit={submit} className="space-y-5">
       <div>
         {hasPayments ? (
-          <p className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          <p className="rounded-xl bg-slate-900/5 px-3 py-2 text-sm text-slate-600 dark:bg-white/5 dark:text-slate-300">
             {payable ? 'Hutang (aku pinjam)' : 'Piutang (aku meminjamkan)'}
           </p>
         ) : (
@@ -181,7 +181,7 @@ export function DebtForm({
               type="button"
               onClick={() => setDueDate('')}
               aria-label="Hapus jatuh tempo"
-              className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 active:bg-slate-200 dark:bg-slate-800"
+              className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-slate-900/5 text-slate-500 active:bg-slate-900/10 dark:bg-white/5"
             >
               <X className="size-5" aria-hidden />
             </button>

@@ -1,10 +1,7 @@
 import { shiftMonth } from '@finance/shared'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatMonth } from '../lib/format'
-import { cardClass } from './ui'
-
-const arrowClass =
-  'rounded-xl p-2.5 text-slate-600 active:bg-slate-100 dark:text-slate-300 dark:active:bg-slate-800'
+import { glassIconButtonClass } from './ui'
 
 export function MonthSwitcher({
   month,
@@ -14,12 +11,12 @@ export function MonthSwitcher({
   onChange: (month: string) => void
 }) {
   return (
-    <div className={`mx-4 flex items-center justify-between p-1.5 ${cardClass}`}>
+    <div className="mx-4 flex items-center justify-between">
       <button
         type="button"
         aria-label="Bulan sebelumnya"
         onClick={() => onChange(shiftMonth(month, -1))}
-        className={arrowClass}
+        className={glassIconButtonClass}
       >
         <ChevronLeft className="size-5" aria-hidden />
       </button>
@@ -30,7 +27,7 @@ export function MonthSwitcher({
         type="button"
         aria-label="Bulan berikutnya"
         onClick={() => onChange(shiftMonth(month, 1))}
-        className={arrowClass}
+        className={glassIconButtonClass}
       >
         <ChevronRight className="size-5" aria-hidden />
       </button>

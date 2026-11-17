@@ -136,7 +136,7 @@ export function TransactionsPage() {
               update({ q: text.trim() })
               e.currentTarget.blur()
             }}
-            className={`${inputClass} pr-10 pl-11 [&::-webkit-search-cancel-button]:hidden`}
+            className={`${inputClass} rounded-full! pr-10 pl-11 [&::-webkit-search-cancel-button]:hidden`}
           />
           {text && (
             <button
@@ -156,7 +156,7 @@ export function TransactionsPage() {
           type="button"
           onClick={() => setFiltersOpen(true)}
           aria-label={chips.length ? `Filter (${chips.length} aktif)` : 'Filter'}
-          className="relative flex size-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 active:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          className="glass glass-sm glass-button relative flex size-12 shrink-0 items-center justify-center rounded-full text-slate-800 dark:text-slate-100"
         >
           <SlidersHorizontal className="size-5" aria-hidden />
           {chips.length > 0 && (

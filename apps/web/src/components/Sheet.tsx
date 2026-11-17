@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react'
 import { attachSheetSwipe, resetSheetDrag } from '../lib/sheetSwipe'
+import { glassIconButtonClass } from './ui'
 
 type Props = {
   open: boolean
@@ -163,7 +164,8 @@ export function Sheet({ open, onClose, title, children }: Props) {
       onClick={(e) => {
         if (e.target === e.currentTarget && pressedBackdrop.current && isOpen) onClose()
       }}
-      className="sheet mx-auto mt-auto mb-0 max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-0 text-slate-900 sm:mb-auto sm:rounded-3xl dark:bg-slate-900 dark:text-slate-100"
+      // Frosted glass floating just above the bottom edge (iOS 26 sheets); docs/LIQUID-GLASS.md.
+      className="sheet glass-regular mx-auto mt-auto mb-2 max-h-[calc(92dvh-0.5rem)] w-[calc(100%-1rem)] max-w-md overflow-y-auto overscroll-contain rounded-[2rem] p-0 text-slate-900 sm:mb-auto dark:text-slate-100"
     >
       {rendered && (
         <ParentClosing value={closing}>
@@ -177,11 +179,11 @@ export function Sheet({ open, onClose, title, children }: Props) {
             <div
               ref={header}
               data-sheet-grab
-              className="sticky top-0 z-10 touch-none border-b border-transparent bg-white px-4 pt-3 pb-4 transition-colors data-scrolled:border-slate-200 dark:bg-slate-900 dark:data-scrolled:border-slate-800"
+              className="sheet-bar sticky top-0 z-10 touch-none border-b border-transparent px-4 pt-3 pb-4 data-scrolled:border-slate-900/10 dark:data-scrolled:border-white/10"
             >
               <div
                 aria-hidden
-                className="mx-auto h-1.5 w-10 rounded-full bg-slate-200 sm:hidden dark:bg-slate-700"
+                className="mx-auto h-1.5 w-10 rounded-full bg-slate-900/15 sm:hidden dark:bg-white/25"
               />
               <div className="mt-2 flex items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold">{view.title}</h2>
@@ -189,7 +191,7 @@ export function Sheet({ open, onClose, title, children }: Props) {
                   type="button"
                   onClick={onClose}
                   aria-label="Tutup"
-                  className="rounded-full p-2.5 text-slate-500 active:bg-slate-100 dark:active:bg-slate-800"
+                  className={glassIconButtonClass}
                 >
                   <X className="size-5" aria-hidden />
                 </button>
@@ -228,7 +230,7 @@ export function SheetFooter({
     <div
       ref={register ?? undefined}
       data-sheet-footer
-      className="sheet-footer sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-transparent bg-white px-4 pt-3 transition-colors data-stuck:border-slate-200 dark:bg-slate-900 dark:data-stuck:border-slate-800"
+      className="sheet-footer sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-transparent px-4 pt-3 data-stuck:border-slate-900/10 dark:data-stuck:border-white/10"
     >
       {notice && (
         <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">

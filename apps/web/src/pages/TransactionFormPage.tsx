@@ -387,7 +387,7 @@ function TransactionForm({
       </form>
 
       {/* Sticky, not fixed: it moves with the page when the page slides in. */}
-      <div className="sticky bottom-0 z-10 mt-auto border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+      <div className="scroll-edge-bottom sticky bottom-0 z-10 mt-auto px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
         <button
           type="submit"
           form="transaction-form"

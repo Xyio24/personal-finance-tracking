@@ -135,7 +135,7 @@ export function GoalForm({
               type="button"
               onClick={() => setDeadline('')}
               aria-label="Hapus deadline"
-              className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 active:bg-slate-200 dark:bg-slate-800"
+              className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-slate-900/5 text-slate-500 active:bg-slate-900/10 dark:bg-white/5"
             >
               <X className="size-5" aria-hidden />
             </button>
