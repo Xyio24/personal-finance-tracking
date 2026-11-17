@@ -96,9 +96,10 @@ tetap mewajibkan session, dan build production tidak berisi kode demo sama sekal
   saat kembali), posisi scroll daftar diingat saat kembali, toast konfirmasi dengan **Urungkan**,
   dan isian yang tidak sengaja tertutup bisa dipulihkan. Semua animasi mengikuti setelan "kurangi
   gerakan" di HP.
-- **Navigasi bawah bergaya _liquid glass_**: kapsul kaca bening yang melayang di atas halaman,
-  dengan pil kaca di tab aktif yang terangkat, meluncur seperti cairan, dan bisa diseret ke tab
-  lain. Spesifikasi lengkapnya (ukuran, material, rumus gerak) ada di
+- **Tampilan _liquid glass_ ala iOS 26**: navigasi bawah berupa kapsul kaca bening yang
+  melayang, popup kaca yang mengambang, tombol kapsul kaca, dan pil kaca di tab aktif serta di
+  setiap pilihan segmen (mis. Hutang/Piutang) yang terangkat, meluncur seperti cairan, dan bisa
+  diseret. Spesifikasi lengkapnya (material, ukuran, rumus gerak) ada di
   [docs/LIQUID-GLASS.md](docs/LIQUID-GLASS.md), supaya bisa ditiru persis.
 - **Salah input bisa diperbaiki**: setiap transaksi, isi/culik, pembayaran hutang, dan hutang/
   piutang itu sendiri (termasuk tanggal, dompet, dan jenisnya) bisa diubah atau dihapus.
